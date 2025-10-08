@@ -49,7 +49,7 @@
             title: '',
             segmentEnd: 0,
             activeIdx: -1,
-            playbackMode: 'continuous', // 'single-play', 'single-loop', 'continuous', 'ab-loop'
+            playbackMode: 'single-play', // 'single-play', 'single-loop', 'continuous', 'ab-loop'
             abLoop: { a: null, b: null }
         };
         audio.src = mp3Src;
@@ -316,8 +316,9 @@
                 switch (state.playbackMode) {
                     case 'single-play':
                         audio.pause();
-                        state.segmentEnd = 0;
-                        break;
+                        // By returning here, we prevent the findIndex and highlight logic below from running,
+                        // which stops the highlight from jumping to the next sentence.
+                        return;
                     case 'single-loop':
                         if (state.activeIdx !== -1) {
                             const { start } = state.data[state.activeIdx];
@@ -347,7 +348,7 @@
         });
 
         function loadSettings() {
-            const savedMode = localStorage.getItem('playbackMode') || 'continuous';
+            const savedMode = localStorage.getItem('playbackMode') || 'single-play';
             const savedSpeed = localStorage.getItem('playbackSpeed') || '1x';
 
             // Apply mode
