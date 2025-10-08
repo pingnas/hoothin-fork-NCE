@@ -108,11 +108,30 @@
 
 ---
 
-Site：[http://nce.ichochy.com](http://nce.ichochy.com)
+## 派生与修改
 
-Blog：[http://ichochy.com](http://ichochy.com)
+本派生项目源于 [iChochy/NCE](https://github.com/iChochy/NCE).
 
-资源：https://github.com/tangx/New-Concept-English
+主要修改内容包括：
+- 彻底重新设计了UI，采用了现代化的深色主题美学。
+- 使用自定义构建的响应式播放器替换了默认的音频播放器。
+- 添加了多种播放速度控制（0.25x, 0.5x, 1.5x, 1.75x, 2x, 3x）。
+- 使用 `localStorage` 实现了播放模式和速度设置的持久化。
+- 为了更好的用户体验，将播放器控件固定在屏幕底部。
+- 在桌面端将句子显示从块状（block）更改为内联块状（inline-block），以实现更紧凑的布局。
+- 常规代码重构和错误修复。
+
+---
+
+## 许可证
+
+本项目采用 MIT 许可证。详情请参阅 [LICENSE](LICENSE) 文件。
+
+---
+
+Site：[https://nce.hoothin.com](https://nce.hoothin.com)
+
+
 
 ---
 
@@ -120,4 +139,4 @@ Blog：[http://ichochy.com](http://ichochy.com)
 >大量的学习，大量的研究  
 >不断地重复，不断的实践  
 >从而建立起自己稳定的内核  
->在克服逆境的过程中爱上自己  
+>在克服逆境的过程中爱上自己
