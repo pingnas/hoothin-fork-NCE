@@ -7,51 +7,34 @@
 }
 
 .lessons-grid {
-    margin: 15px;
+    margin: 15px 0;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 10px;
+    gap: 15px;
 }
 
 .lesson-item {
     display: block;
-    padding: 10px;
-    background: #222222;
-    border: none;
-    border-radius: 10px;
+    padding: 15px 20px;
+    background: var(--container-highlight);
+    border-radius: 8px;
     text-decoration: none;
-    color: #aaaaaa;
+    color: var(--text-color-dark);
     transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
+    border: 1px solid transparent;
 }
 
 .lesson-item:hover {
-    transform: translateX(8px);
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
-}
-
-.lesson-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    transform: scaleY(0);
-    transition: transform 0.3s ease;
-}
-
-.lesson-item:hover::before {
-    transform: scaleY(1);
+    transform: translateY(-3px);
+    background-color: #333;
+    color: var(--text-color);
+    border-color: var(--primary-color);
 }
 
 .lesson-number {
     font-weight: 700;
-    margin-left: 10px;
+    color: var(--text-color);
+    margin-right: 10px;
 }
 
 .lesson-title {
@@ -61,6 +44,7 @@
 @media (max-width: 768px) {
     .lessons-grid {
         grid-template-columns: 1fr;
+        gap: 10px;
     }
 
 }
