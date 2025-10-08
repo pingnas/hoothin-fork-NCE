@@ -31,6 +31,15 @@
         const modesContainer = document.getElementById('playback-modes');
         const setAButton = document.getElementById('set-a');
         const setBButton = document.getElementById('set-b');
+        const speedContainer = document.getElementById('playback-speed');
+
+        // Custom player controls
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const progressBar = document.getElementById('progress-bar');
+        const progress = document.getElementById('progress');
+        const timeDisplay = document.getElementById('time-display');
+        const volumeBtn = document.getElementById('volume-btn');
+        const volumeSlider = document.getElementById('volume-slider');
 
         /** 数据结构 */
         const state = {
@@ -46,6 +55,15 @@
         audio.src = mp3Src;
         bookImgEl.src = bookImgSrc;
         bookImgEl.alt = book;
+
+        /** ------------------------------------------------- 
+         *  Utilities
+         * ------------------------------------------------- */
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+        }
 
         /** ------------------------------------------------- 
          *  元信息解析
@@ -141,6 +159,69 @@
         }
 
         /** ------------------------------------------------- 
+         *  Custom Player Logic
+         * ------------------------------------------------- */
+        playPauseBtn.addEventListener('click', () => {
+            if (audio.paused) {
+                if (state.activeIdx !== -1) {
+                    // If there's an active sentence, play from its start
+                    const { start, end } = state.data[state.activeIdx];
+                    playSegment(start, end);
+                } else {
+                    // If no active sentence, play from the beginning of the first sentence
+                    const { start, end } = state.data[0];
+                    playSegment(start, end);
+                }
+            } else {
+                audio.pause();
+            }
+        });
+
+        audio.addEventListener('play', () => {
+            playPauseBtn.classList.remove('play');
+            playPauseBtn.classList.add('pause');
+        });
+
+        audio.addEventListener('pause', () => {
+            playPauseBtn.classList.remove('pause');
+            playPauseBtn.classList.add('play');
+        });
+
+        audio.addEventListener('loadedmetadata', () => {
+            timeDisplay.textContent = `${formatTime(0)} / ${formatTime(audio.duration)}`;
+        });
+
+        progressBar.addEventListener('click', e => {
+            const rect = progressBar.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const width = progressBar.clientWidth;
+            const duration = audio.duration;
+            audio.currentTime = (clickX / width) * duration;
+        });
+
+        volumeBtn.addEventListener('click', () => {
+            audio.muted = !audio.muted;
+        });
+
+        audio.addEventListener('volumechange', () => {
+            if (audio.muted || audio.volume === 0) {
+                volumeBtn.classList.remove('volume-high');
+                volumeBtn.classList.add('volume-muted');
+                volumeSlider.value = 0;
+            } else {
+                volumeBtn.classList.remove('volume-muted');
+                volumeBtn.classList.add('volume-high');
+                volumeSlider.value = audio.volume;
+            }
+        });
+
+        volumeSlider.addEventListener('input', e => {
+            audio.volume = e.target.value;
+            audio.muted = e.target.value === '0';
+        });
+
+
+        /** ------------------------------------------------- 
          *  事件绑定（委托）
          * ------------------------------------------------- */
         content.addEventListener('click', e => {
@@ -157,7 +238,8 @@
             const mode = e.target.id.replace('mode-', '');
             if (['single-play', 'single-loop', 'continuous', 'ab-loop'].includes(mode)) {
                 state.playbackMode = mode;
-                
+                localStorage.setItem('playbackMode', mode);
+
                 // Update active button
                 for (const child of modesContainer.children) {
                     child.classList.remove('active');
@@ -198,8 +280,29 @@
             }
         });
 
+        speedContainer.addEventListener('click', e => {
+            if (e.target.tagName !== 'BUTTON') return;
+
+            const speed = e.target.id.replace('speed-', ''); // e.g., '1x', '3x'
+            audio.playbackRate = parseFloat(speed);
+            localStorage.setItem('playbackSpeed', speed);
+
+            // Update active button
+            for (const child of speedContainer.children) {
+                child.classList.remove('active');
+            }
+            e.target.classList.add('active');
+        });
+
         audio.addEventListener('timeupdate', () => {
             const cur = audio.currentTime;
+            const duration = audio.duration;
+
+            // Update progress bar and time display
+            if (duration) {
+                progress.style.width = `${(cur / duration) * 100}%`;
+                timeDisplay.textContent = `${formatTime(cur)} / ${formatTime(duration)}`;
+            }
 
             // A-B Loop logic
             if (state.playbackMode === 'ab-loop' && state.abLoop.a !== null && state.abLoop.b !== null && cur >= state.abLoop.b) {
@@ -243,11 +346,27 @@
             if (idx !== -1) highlight(idx);
         });
 
+        function loadSettings() {
+            const savedMode = localStorage.getItem('playbackMode') || 'continuous';
+            const savedSpeed = localStorage.getItem('playbackSpeed') || '1x';
+
+            // Apply mode
+            state.playbackMode = savedMode;
+            document.getElementById(`mode-${savedMode}`).classList.add('active');
+            if (savedMode === 'ab-loop') {
+                setAButton.style.display = 'inline-block';
+                setBButton.style.display = 'inline-block';
+            }
+
+            // Apply speed
+            audio.playbackRate = parseFloat(savedSpeed);
+            document.getElementById(`speed-${savedSpeed}`).classList.add('active');
+        }
+
         // 初始化
+        loadSettings();
         loadLrc().then(r => {
             console.log("LRC Data:", JSON.stringify(state.data, null, 2));
-            // Set default active button
-            document.getElementById('mode-continuous').classList.add('active');
         });
 
     })
