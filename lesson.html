@@ -7,6 +7,42 @@
     <link rel="stylesheet" href="static/base.css">
     <link rel="stylesheet" href="static/lesson.css">
     <script src="static/lesson.js"></script>
+    <style>
+        /* Rules for hiding/showing Chinese/English text */
+        #content.en-mode .cn { display: none; }
+        #content.cn-mode .en { display: none; }
+
+        /* Copied styles from lesson.css for consistency */
+        #display-modes {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 10px 0 0;
+        }
+
+        #display-modes button {
+            background-color: #333;
+            color: var(--text-color-dark);
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 8px 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        #display-modes button:hover {
+            background-color: #444;
+            color: var(--text-color);
+        }
+
+        #display-modes button.active {
+            background-color: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+    </style>
 </head>
 <body>
 <div class="container">
@@ -57,13 +93,17 @@
             <button id="set-b" style="display: none;">设置B点</button>
         </div>
         <div id="playback-speed">
-            <button id="speed-0.25x">0.25x</button>
             <button id="speed-0.5x">0.5x</button>
             <button id="speed-1x">1x</button>
             <button id="speed-1.5x">1.5x</button>
             <button id="speed-1.75x">1.75x</button>
             <button id="speed-2x">2x</button>
             <button id="speed-3x">3x</button>
+        </div>
+        <div id="display-modes">
+            <button id="mode-bilingual">中英</button>
+            <button id="mode-en">英文</button>
+            <button id="mode-cn">中文</button>
         </div>
     </div>
 </div>
@@ -72,6 +112,43 @@
     <hr>
     <p>© 2025 <a href="https://nce.hoothin.com">hoothin</a>.</p>
 </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const content = document.getElementById('content');
+    const displayModesContainer = document.getElementById('display-modes');
+
+    function applyDisplayMode(mode) {
+        if (!mode) return;
+        content.classList.remove('bilingual-mode', 'en-mode', 'cn-mode');
+        content.classList.add(mode);
+
+        for (const child of displayModesContainer.children) {
+            child.classList.remove('active');
+        }
+        
+        const modeName = mode.split('-')[0];
+        const activeButton = document.getElementById(`mode-${modeName}`);
+        if (activeButton) {
+            activeButton.classList.add('active');
+        }
+    }
+
+    displayModesContainer.addEventListener('click', e => {
+        if (e.target.tagName !== 'BUTTON') return;
+
+        const modeName = e.target.id.replace('mode-', ''); // bilingual, en, cn
+        const modeClass = `${modeName}-mode`;
+        
+        applyDisplayMode(modeClass);
+        localStorage.setItem('displayMode', modeClass);
+    });
+
+    // Load saved display mode
+    const savedDisplayMode = localStorage.getItem('displayMode') || 'bilingual-mode';
+    applyDisplayMode(savedDisplayMode);
+});
+</script>
 
 </body>
 </html>
