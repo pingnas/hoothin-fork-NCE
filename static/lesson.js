@@ -28,6 +28,9 @@
         const bookTitleEl = document.getElementById('book-title');
         const bookImgEl = document.getElementById('book-img');
         const lessonTitleEl = document.getElementById('lesson-title');
+        const modesContainer = document.getElementById('playback-modes');
+        const setAButton = document.getElementById('set-a');
+        const setBButton = document.getElementById('set-b');
 
         /** 数据结构 */
         const state = {
@@ -36,13 +39,15 @@
             artist: '',
             title: '',
             segmentEnd: 0,
-            activeIdx: -1
+            activeIdx: -1,
+            playbackMode: 'continuous', // 'single-play', 'single-loop', 'continuous', 'ab-loop'
+            abLoop: { a: null, b: null }
         };
         audio.src = mp3Src;
         bookImgEl.src = bookImgSrc;
         bookImgEl.alt = book;
 
-        /** -------------------------------------------------
+        /** ------------------------------------------------- 
          *  元信息解析
          * ------------------------------------------------- */
         function parseInfo(line) {
@@ -52,7 +57,7 @@
             }
         }
 
-        /** -------------------------------------------------
+        /** ------------------------------------------------- 
          *  时间解析
          * ------------------------------------------------- */
         function parseTime(tag) {
@@ -60,7 +65,7 @@
             return m ? parseInt(m[1], 10) * 60 + parseFloat(m[2]) -0.5 : 0;
         }
 
-        /** -------------------------------------------------
+        /** ------------------------------------------------- 
          *  LRC 解析
          * ------------------------------------------------- */
         async function loadLrc() {
@@ -94,7 +99,7 @@
         }
 
 
-        /** -------------------------------------------------
+        /** ------------------------------------------------- 
          *  渲染
          * ------------------------------------------------- */
         function render() {
@@ -111,17 +116,16 @@
             ).join('');
         }
 
-        /** -------------------------------------------------
+        /** ------------------------------------------------- 
          *  播放区间
          * ------------------------------------------------- */
         function playSegment(start, end) {
             state.segmentEnd = end
             audio.currentTime = start;
             audio.play();
-            state.activeIdx = -1;
         }
 
-        /** -------------------------------------------------
+        /** ------------------------------------------------- 
          *  高亮 & 自动滚动
          * ------------------------------------------------- */
         function highlight(idx) {
@@ -136,7 +140,7 @@
             state.activeIdx = idx;
         }
 
-        /** -------------------------------------------------
+        /** ------------------------------------------------- 
          *  事件绑定（委托）
          * ------------------------------------------------- */
         content.addEventListener('click', e => {
@@ -147,26 +151,103 @@
             playSegment(start, end);
         });
 
+        modesContainer.addEventListener('click', e => {
+            if (e.target.tagName !== 'BUTTON') return;
+
+            const mode = e.target.id.replace('mode-', '');
+            if (['single-play', 'single-loop', 'continuous', 'ab-loop'].includes(mode)) {
+                state.playbackMode = mode;
+                
+                // Update active button
+                for (const child of modesContainer.children) {
+                    child.classList.remove('active');
+                }
+                e.target.classList.add('active');
+
+                // Show/hide A-B buttons
+                if (mode === 'ab-loop') {
+                    setAButton.style.display = 'inline-block';
+                    setBButton.style.display = 'inline-block';
+                } else {
+                    setAButton.style.display = 'none';
+                    setBButton.style.display = 'none';
+                }
+            }
+        });
+
+        setAButton.addEventListener('click', () => {
+            if (state.activeIdx !== -1) {
+                state.abLoop.a = state.data[state.activeIdx].start;
+                setAButton.textContent = `A: ${state.abLoop.a.toFixed(1)}`;
+                // Reset B if A is set after B
+                state.abLoop.b = null;
+                setBButton.textContent = '设置B点';
+            }
+        });
+
+        setBButton.addEventListener('click', () => {
+            if (state.activeIdx !== -1 && state.abLoop.a !== null) {
+                const bPoint = state.data[state.activeIdx].end;
+                if (bPoint > state.abLoop.a) {
+                    state.abLoop.b = bPoint;
+                    setBButton.textContent = `B: ${state.abLoop.b.toFixed(1)}`;
+                    // Start playing the loop
+                    audio.currentTime = state.abLoop.a;
+                    audio.play();
+                }
+            }
+        });
+
         audio.addEventListener('timeupdate', () => {
             const cur = audio.currentTime;
-            // 区间结束自动暂停
-            if (state.segmentEnd && cur >= state.segmentEnd) {
-                audio.pause();
-                audio.currentTime = state.segmentEnd;
-                state.segmentEnd = 0;
-                state.activeIdx = -1;
-                return;
+
+            // A-B Loop logic
+            if (state.playbackMode === 'ab-loop' && state.abLoop.a !== null && state.abLoop.b !== null && cur >= state.abLoop.b) {
+                audio.currentTime = state.abLoop.a;
+                return; // Return to avoid other logic
             }
 
-            // 找到当前句子索引
+            // Sentence-based logic for other modes
+            if (state.segmentEnd && cur >= state.segmentEnd) {
+                let shouldReturn = true;
+                switch (state.playbackMode) {
+                    case 'single-play':
+                        audio.pause();
+                        state.segmentEnd = 0;
+                        break;
+                    case 'single-loop':
+                        if (state.activeIdx !== -1) {
+                            const { start } = state.data[state.activeIdx];
+                            audio.currentTime = start;
+                        }
+                        break;
+                    case 'continuous':
+                        const nextIdx = state.activeIdx + 1;
+                        if (state.activeIdx !== -1 && nextIdx < state.data.length) {
+                            const {start, end} = state.data[nextIdx];
+                            playSegment(start, end);
+                            shouldReturn = false; // Allow highlight to update
+                        } else {
+                            audio.pause();
+                            state.segmentEnd = 0;
+                        }
+                        break;
+                }
+                if (shouldReturn) return;
+            }
+
+            // Find and highlight current sentence
             const idx = state.data.findIndex(
-                item => cur > item.start && (cur < item.end || !item.end)
+                item => cur >= item.start && (cur < item.end || !item.end)
             );
             if (idx !== -1) highlight(idx);
         });
 
         // 初始化
         loadLrc().then(r => {
+            console.log("LRC Data:", JSON.stringify(state.data, null, 2));
+            // Set default active button
+            document.getElementById('mode-continuous').classList.add('active');
         });
 
     })
