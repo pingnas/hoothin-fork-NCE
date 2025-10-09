@@ -32,6 +32,8 @@
         const setAButton = document.getElementById('set-a');
         const setBButton = document.getElementById('set-b');
         const speedContainer = document.getElementById('playback-speed');
+        const dictationModeCheckbox = document.getElementById('dictation-mode');
+        const dictationContainer = document.getElementById('dictation-container');
 
         // Custom player controls
         const playPauseBtn = document.getElementById('play-pause-btn');
@@ -50,6 +52,7 @@
             segmentEnd: 0,
             activeIdx: -1,
             playbackMode: 'single-play', // 'single-play', 'single-loop', 'continuous', 'ab-loop'
+            dictation: false,
             abLoop: { a: null, b: null }
         };
         audio.src = mp3Src;
@@ -146,16 +149,67 @@
         /** ------------------------------------------------- 
          *  高亮 & 自动滚动
          * ------------------------------------------------- */
-        function highlight(idx) {
-            if (idx === state.activeIdx) return;
+        function highlight(idx, options = {}) {
+            const { force = false } = options;
+            if (idx === state.activeIdx && !force) return;
+
+            // Clean up any previous dictation input
+            const oldInput = content.querySelector('.dictation-input');
+            if (oldInput) {
+                const parentSentence = oldInput.closest('.sentence');
+                if (parentSentence) {
+                    parentSentence.querySelector('.en').style.display = '';
+                }
+                oldInput.remove();
+            }
+
             const prev = content.querySelector('.sentence.active');
             if (prev) prev.classList.remove('active');
+
             const cur = content.querySelector(`.sentence[data-idx="${idx}"]`);
             if (cur) {
                 cur.classList.add('active');
                 cur.scrollIntoView({behavior: 'smooth', block: 'center'});
+
+                const enDiv = cur.querySelector('.en');
+                if (state.dictation && state.playbackMode === 'single-play') {
+                    activateDictationForSentence(cur, idx);
+                } else {
+                    if (enDiv) enDiv.style.display = '';
+                }
             }
             state.activeIdx = idx;
+        }
+
+        function activateDictationForSentence(sentenceEl, idx) {
+            const enDiv = sentenceEl.querySelector('.en');
+            if (enDiv) {
+                enDiv.style.display = 'none';
+            }
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'dictation-input';
+            input.placeholder = '请输入英文句子...';
+            sentenceEl.appendChild(input);
+            input.focus();
+
+            const correctAnswer = state.data[idx].en.replace(/[^a-zA-Z]/g, '').toLowerCase();
+
+            input.addEventListener('input', e => {
+                const userInput = e.target.value.replace(/[^a-zA-Z]/g, '').toLowerCase();
+
+                if (userInput === correctAnswer) {
+                    input.disabled = true;
+                    const nextIdx = idx + 1;
+                    if (nextIdx < state.data.length) {
+                        const { start, end } = state.data[nextIdx];
+                        playSegment(start, end);
+                    } else {
+                        audio.pause();
+                    }
+                }
+            });
         }
 
         /** ------------------------------------------------- 
@@ -232,6 +286,31 @@
             playSegment(start, end);
         });
 
+        dictationModeCheckbox.addEventListener('change', e => {
+            state.dictation = e.target.checked;
+
+            // Re-render the current sentence to apply/remove dictation view
+            if (state.activeIdx !== -1) {
+                highlight(state.activeIdx, { force: true });
+            }
+
+            // If dictation is turned ON and audio is paused, start playing.
+            if (state.dictation && audio.paused) {
+                let playIndex = state.activeIdx;
+
+                // If no sentence is active, start from the beginning.
+                if (playIndex === -1) {
+                    playIndex = 0;
+                }
+
+                // Ensure the index is valid before trying to play.
+                if (playIndex >= 0 && playIndex < state.data.length) {
+                    const { start, end } = state.data[playIndex];
+                    playSegment(start, end);
+                }
+            }
+        });
+
         modesContainer.addEventListener('click', e => {
             if (e.target.tagName !== 'BUTTON') return;
 
@@ -254,6 +333,20 @@
                     setAButton.style.display = 'none';
                     setBButton.style.display = 'none';
                 }
+
+                // Handle dictation mode availability
+                if (mode === 'single-play') {
+                    dictationContainer.style.display = '';
+                } else {
+                    dictationContainer.style.display = 'none';
+                    dictationModeCheckbox.checked = false;
+                    state.dictation = false;
+                    // If a sentence is active, re-highlight to remove dictation input
+                    if (state.activeIdx !== -1) {
+                        highlight(state.activeIdx, { force: true });
+                    }
+                }
+
                 if (audio.paused) {
                     if (state.activeIdx !== -1) {
                         // If there's an active sentence, play from its start
@@ -344,6 +437,7 @@
                         }
                         break;
                     case 'continuous':
+                    case 'ab-loop':
                         const nextIdx = state.activeIdx + 1;
                         if (state.activeIdx !== -1 && nextIdx < state.data.length) {
                             const {start, end} = state.data[nextIdx];
@@ -377,10 +471,31 @@
                 setBButton.style.display = 'inline-block';
             }
 
+            // Handle dictation mode availability on load
+            if (savedMode === 'single-play') {
+                dictationContainer.style.display = '';
+            } else {
+                dictationContainer.style.display = 'none';
+            }
+
             // Apply speed
             audio.playbackRate = parseFloat(savedSpeed);
             document.getElementById(`speed-${savedSpeed}`).classList.add('active');
         }
+
+        document.addEventListener('keydown', e => {
+            if (!state.dictation) return;
+
+            const dictationInput = content.querySelector('.dictation-input');
+            if (!dictationInput) return;
+
+            // If focus is already on an interactive element, do nothing.
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') {
+                return;
+            }
+
+            dictationInput.focus();
+        });
 
         // 初始化
         loadSettings();
