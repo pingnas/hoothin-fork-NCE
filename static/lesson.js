@@ -254,6 +254,17 @@
                     setAButton.style.display = 'none';
                     setBButton.style.display = 'none';
                 }
+                if (audio.paused) {
+                    if (state.activeIdx !== -1) {
+                        // If there's an active sentence, play from its start
+                        const { start, end } = state.data[(mode === 'single-play' ? (state.activeIdx + 1) : state.activeIdx)];
+                        playSegment(start, end);
+                    } else {
+                        // If no active sentence, play from the beginning of the first sentence
+                        const { start, end } = state.data[0];
+                        playSegment(start, end);
+                    }
+                }
             }
         });
 
