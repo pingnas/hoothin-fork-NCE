@@ -16,7 +16,6 @@
     overflow: hidden;
     display: flex;
     align-items: center;
-    padding: 20px;
     border: 1px solid transparent;
 }
 
@@ -28,15 +27,13 @@
 
 .book-card img {
     border-radius: 8px;
-    width: 100px;
-    height: auto;
+    width: auto;
+    height: 200px;
     object-fit: cover;
-    margin-right: 20px;
 }
 
 .book-card .book-info {
     flex: 1;
-    text-align: left;
 }
 
 .book-number {
@@ -74,12 +71,11 @@
         gap: 20px;
     }
     .book-card {
-        flex-direction: column;
         text-align: center;
     }
     .book-card img {
-        margin-right: 0;
-        margin-bottom: 15px;
+        margin: 15px;
+        max-height: 35vw;
     }
     .book-card .book-info {
         text-align: center;
