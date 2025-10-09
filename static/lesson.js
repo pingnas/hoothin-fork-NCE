@@ -257,7 +257,14 @@
                 if (audio.paused) {
                     if (state.activeIdx !== -1) {
                         // If there's an active sentence, play from its start
-                        const { start, end } = state.data[(mode === 'single-play' ? (state.activeIdx + 1) : state.activeIdx)];
+                        let nextIdx = state.activeIdx;
+                        if (mode === 'single-play' || mode === 'continuous') {
+                            nextIdx++;
+                        }
+                        if (nextIdx === state.data.length) {
+                            nextIdx = 0;
+                        }
+                        const { start, end } = state.data[nextIdx];
                         playSegment(start, end);
                     } else {
                         // If no active sentence, play from the beginning of the first sentence
