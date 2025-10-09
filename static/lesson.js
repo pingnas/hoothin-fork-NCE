@@ -169,7 +169,8 @@
             const cur = content.querySelector(`.sentence[data-idx="${idx}"]`);
             if (cur) {
                 cur.classList.add('active');
-                cur.scrollIntoView({behavior: 'smooth', block: 'center'});
+                const scrollBlockPosition = state.dictation ? 'start' : 'center';
+                cur.scrollIntoView({behavior: 'smooth', block: scrollBlockPosition});
 
                 const enDiv = cur.querySelector('.en');
                 if (state.dictation && state.playbackMode === 'single-play') {
