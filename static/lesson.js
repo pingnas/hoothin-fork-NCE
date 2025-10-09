@@ -208,6 +208,13 @@
                         playSegment(start, end);
                     } else {
                         audio.pause();
+                        // Last sentence finished, clean up the UI
+                        input.remove();
+                        if (enDiv) {
+                            enDiv.style.display = '';
+                        }
+                        sentenceEl.classList.remove('active');
+                        state.activeIdx = -1;
                     }
                 }
             });
