@@ -121,6 +121,54 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    const hash = window.location.hash.substring(1);
+    const parts = hash.split('/');
+    const book = parts[0] ? parts[0].replace('NCE', '') : null;
+    const lesson = parts[1] || null;
+
+    function savePlaybackHistory(currentTime) {
+        const title = document.getElementById('lesson-title').textContent;
+        if (!book || !lesson || !title) return;
+
+        let history = JSON.parse(localStorage.getItem('ncePlaybackHistory') || '[]');
+
+        // Remove existing entry for this lesson to move it to the top
+        history = history.filter(item => !(item.book === book && item.lesson === lesson));
+
+        // Add new entry to the beginning
+        history.unshift({ book, lesson, title, lastPosition: currentTime, timestamp: Date.now() });
+
+        // Keep only the last 10 items
+        if (history.length > 10) {
+            history.pop();
+        }
+
+        localStorage.setItem('ncePlaybackHistory', JSON.stringify(history));
+    }
+
+    const player = document.getElementById('player');
+    let lastUpdateTime = 0;
+
+    player.addEventListener('loadedmetadata', () => {
+        const history = JSON.parse(localStorage.getItem('ncePlaybackHistory') || '[]');
+        const currentLessonEntry = history.find(item => item.book === book && item.lesson === lesson);
+
+        if (currentLessonEntry && currentLessonEntry.lastPosition) {
+            player.currentTime = currentLessonEntry.lastPosition;
+        }
+        // Save initial position
+        savePlaybackHistory(player.currentTime);
+    });
+
+    player.addEventListener('timeupdate', () => {
+        const now = Date.now();
+        // Update history every 5 seconds to avoid excessive writes
+        if (now - lastUpdateTime > 5000) {
+            savePlaybackHistory(player.currentTime);
+            lastUpdateTime = now;
+        }
+    });
+
     const content = document.getElementById('content');
     const displayModesContainer = document.getElementById('display-modes');
 
