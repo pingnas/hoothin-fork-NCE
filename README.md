@@ -1,4 +1,4 @@
-# [新概念英语-全四册](https://nce.hoothin.com/)
+# 新概念英语-全四册 🔗https://nce.hoothin.com
 ## New Concept English
 ### 在线课文点读
 
@@ -128,8 +128,6 @@
 本项目采用 MIT 许可证。详情请参阅 [LICENSE](LICENSE) 文件。
 
 ---
-
-Site：[https://nce.hoothin.com](https://nce.hoothin.com)
 
 New Concept English audios：https://github.com/tangx/New-Concept-English
 
