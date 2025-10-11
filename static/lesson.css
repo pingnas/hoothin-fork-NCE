@@ -61,6 +61,68 @@
     transition: color 0.3s ease;
 }
 
+/* Lesson Navigation Buttons */
+.lesson-navigation {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.nav-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background-color: #333;
+    color: var(--text-color-dark);
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.nav-btn svg {
+    width: 18px;
+    height: 18px;
+    transition: transform 0.3s ease;
+}
+
+.nav-btn:hover:not(:disabled) {
+    background-color: #444;
+    color: var(--text-color);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(29, 185, 84, 0.2);
+}
+
+.nav-btn:hover:not(:disabled) svg {
+    transform: scale(1.2);
+}
+
+#prev-lesson:hover:not(:disabled) svg {
+    transform: translateX(-3px) scale(1.2);
+}
+
+#next-lesson:hover:not(:disabled) svg {
+    transform: translateX(3px) scale(1.2);
+}
+
+.nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    background-color: #222;
+    border-color: #333;
+}
+
+.nav-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
 .player-container {
     position: fixed;
     bottom: 0;

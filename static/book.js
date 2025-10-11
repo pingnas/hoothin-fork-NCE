@@ -73,6 +73,11 @@
             const container = document.getElementById(`book-${bookNumber}-lessons`);
             const lessons = lessonsData[bookNumber];
 
+            // 获取播放历史
+            const history = JSON.parse(localStorage.getItem('ncePlaybackHistory') || '[]');
+            // 找到当前这册书最近阅读的课程
+            const lastReadForBook = history.find(item => item.book === String(bookNumber));
+
             container.innerHTML = '';
             lessons.forEach((lesson, index) => {
                 let lessonNumber = index + 1
@@ -83,6 +88,12 @@
                 const lessonElement = document.createElement('a');
                 lessonElement.href = `lesson.html#NCE${bookNumber}/${lesson.filename}`;
                 lessonElement.className = 'lesson-item';
+
+                // 检查是否是这册书上一次阅读的课程
+                if (lastReadForBook && lastReadForBook.lesson === lesson.filename) {
+                    lessonElement.classList.add('last-read');
+                }
+
                 lessonElement.innerHTML = `
                     <span class="lesson-number">第${lessonNumber}课</span>
                     <span class="lesson-title">${lesson.title}</span>

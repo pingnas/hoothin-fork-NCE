@@ -64,6 +64,20 @@
                 <h3 id="book-title"></h3>
                 <hr>
                 <p id="lesson-title"></p>
+                <div class="lesson-navigation">
+                    <button id="prev-lesson" class="nav-btn" title="上一课">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                        </svg>
+                        <span>上一课</span>
+                    </button>
+                    <button id="next-lesson" class="nav-btn" title="下一课">
+                        <span>下一课</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </header>
     </a>
@@ -132,13 +146,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const title = document.getElementById('lesson-title').textContent;
         if (!book || !lesson || !title) return;
 
+        // 解码 lesson 名称
+        const decodedLesson = decodeURIComponent(lesson);
+
         let history = JSON.parse(localStorage.getItem('ncePlaybackHistory') || '[]');
 
         // Remove existing entry for this lesson to move it to the top
-        history = history.filter(item => !(item.book === book && item.lesson === lesson));
+        history = history.filter(item => !(item.book === book && item.lesson === decodedLesson));
 
         // Add new entry to the beginning
-        history.unshift({ book, lesson, title, lastPosition: currentTime, timestamp: Date.now() });
+        history.unshift({ book, lesson: decodedLesson, title, lastPosition: currentTime, timestamp: Date.now() });
 
         // Keep only the last 10 items
         if (history.length > 10) {
@@ -153,7 +170,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     player.addEventListener('loadedmetadata', () => {
         const history = JSON.parse(localStorage.getItem('ncePlaybackHistory') || '[]');
-        const currentLessonEntry = history.find(item => item.book === book && item.lesson === lesson);
+        const decodedLesson = decodeURIComponent(lesson);
+        const currentLessonEntry = history.find(item => item.book === book && item.lesson === decodedLesson);
 
         if (currentLessonEntry && currentLessonEntry.lastPosition) {
             player.currentTime = currentLessonEntry.lastPosition;

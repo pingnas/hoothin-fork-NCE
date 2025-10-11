@@ -511,5 +511,76 @@
             console.log("LRC Data:", JSON.stringify(state.data, null, 2));
         });
 
+        // Lesson navigation functionality
+        const prevLessonBtn = document.getElementById('prev-lesson');
+        const nextLessonBtn = document.getElementById('next-lesson');
+        let lessonsData = {};
+        let currentBook = null;
+        let currentLessonIndex = -1;
+
+        // Load lessons data
+        async function loadLessonsData() {
+            try {
+                const dataRes = await fetch('static/data.json');
+                lessonsData = await dataRes.json();
+                updateNavigationButtons();
+            } catch (error) {
+                console.error('Failed to load lessons data:', error);
+            }
+        }
+
+        // Update navigation buttons state
+        function updateNavigationButtons() {
+            const hash = location.hash.slice(1).split('?')[0];
+            if (!hash) return;
+
+            const parts = hash.split('/');
+            currentBook = parts[0].replace('NCE', '');
+            const currentFilename = decodeURIComponent(parts[1]);
+
+            const lessons = lessonsData[currentBook];
+            if (!lessons) {
+                console.log('No lessons found for book:', currentBook);
+                return;
+            }
+
+            currentLessonIndex = lessons.findIndex(lesson => lesson.filename === currentFilename);
+
+            console.log('Current book:', currentBook);
+            console.log('Current filename:', currentFilename);
+            console.log('Current lesson index:', currentLessonIndex);
+
+            // Update button states
+            prevLessonBtn.disabled = currentLessonIndex <= 0;
+            nextLessonBtn.disabled = currentLessonIndex >= lessons.length - 1;
+        }
+
+        // Navigate to previous lesson
+        prevLessonBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (currentLessonIndex > 0) {
+                const prevLesson = lessonsData[currentBook][currentLessonIndex - 1];
+                window.location.href = `lesson.html#NCE${currentBook}/${prevLesson.filename}`;
+                window.location.reload();
+            }
+        });
+
+        // Navigate to next lesson
+        nextLessonBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (currentLessonIndex < lessonsData[currentBook].length - 1) {
+                const nextLesson = lessonsData[currentBook][currentLessonIndex + 1];
+                window.location.href = `lesson.html#NCE${currentBook}/${nextLesson.filename}`;
+                window.location.reload();
+            }
+        });
+
+        // Initialize navigation
+        loadLessonsData();
+
     })
 })();

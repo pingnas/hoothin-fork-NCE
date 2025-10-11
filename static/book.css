@@ -121,6 +121,20 @@
     transform: translateY(-2px) scale(1.0);
 }
 
+.lesson-item.last-read {
+    background: linear-gradient(135deg, rgba(29, 185, 84, 0.15) 0%, rgba(29, 185, 84, 0.05) 100%);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 15px rgba(29, 185, 84, 0.3);
+}
+
+.lesson-item.last-read::before {
+    width: 100%;
+}
+
+.lesson-item.last-read .lesson-number {
+    color: var(--primary-color);
+}
+
 .lesson-number {
     font-weight: 700;
     color: var(--text-color);
