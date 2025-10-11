@@ -215,6 +215,8 @@
                         }
                         sentenceEl.classList.remove('active');
                         state.activeIdx = -1;
+                        // Scroll to top of page
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                     }
                 }
             });
