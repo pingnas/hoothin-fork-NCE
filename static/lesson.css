@@ -6,6 +6,61 @@
     min-height: 0;
 }
 
+/* Book header link styling */
+#book {
+    text-decoration: none;
+    display: block;
+    border-radius: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+#book::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#book:hover::after {
+    width: 90%;
+}
+
+#book:hover {
+    background: rgba(29, 185, 84, 0.08);
+    transform: translateY(-3px);
+}
+
+#book:hover .book-header img {
+    transform: scale(1.08) rotate(2deg);
+    box-shadow: 0 8px 20px rgba(29, 185, 84, 0.3);
+}
+
+#book:hover .book-title h3 {
+    color: var(--primary-color);
+}
+
+#book:hover .book-title p {
+    color: var(--text-color);
+}
+
+.book-header img {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.book-title h3 {
+    transition: color 0.3s ease;
+}
+
+.book-title p {
+    transition: color 0.3s ease;
+}
+
 .player-container {
     position: fixed;
     bottom: 0;

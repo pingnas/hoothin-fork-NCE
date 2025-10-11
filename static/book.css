@@ -6,6 +6,73 @@
     display: flex;
 }
 
+/* Navigation buttons in book-header */
+.book-header .nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    background: var(--container-highlight);
+    color: var(--text-color);
+    border: 1px solid transparent;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+}
+
+.book-header .nav-btn svg {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.3s ease;
+}
+
+.book-header .nav-btn:hover:not(:disabled) {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    transform: scale(1.1);
+    box-shadow: 0 4px 15px rgba(29, 185, 84, 0.4);
+}
+
+.book-header #prev-book:hover:not(:disabled) svg {
+    transform: translateX(-2px);
+}
+
+.book-header #next-book:hover:not(:disabled) svg {
+    transform: translateX(2px);
+}
+
+.book-header .nav-btn:active:not(:disabled) {
+    transform: scale(1.0);
+}
+
+.book-header .nav-btn:disabled {
+    opacity: 0.2;
+    cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+    .book-header {
+        gap: 12px;
+    }
+
+    .book-header .nav-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .book-header .nav-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .book-header img {
+        max-width: 60px;
+    }
+}
+
 .lessons-grid {
     margin: 15px 0;
     display: grid;
@@ -20,15 +87,38 @@
     border-radius: 8px;
     text-decoration: none;
     color: var(--text-color-dark);
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.lesson-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-color), #1ed760);
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lesson-item:hover::before {
+    width: 100%;
 }
 
 .lesson-item:hover {
-    transform: translateY(-3px);
-    background-color: #333;
+    transform: translateY(-4px) scale(1.01);
+    background: linear-gradient(135deg, #333 0%, #3a3a3a 100%);
     color: var(--text-color);
     border-color: var(--primary-color);
+    box-shadow: 0 8px 20px rgba(29, 185, 84, 0.15),
+                0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.lesson-item:active {
+    transform: translateY(-2px) scale(1.0);
 }
 
 .lesson-number {

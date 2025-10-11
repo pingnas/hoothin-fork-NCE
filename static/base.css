@@ -29,6 +29,46 @@ hr {
     margin: 15px 0;
 }
 
+.container a {
+    text-decoration: none;
+    display: block;
+}
+
+.container a .header {
+    transition: all 0.3s ease;
+    border-radius: 15px;
+    position: relative;
+}
+
+.container a .header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+    transition: width 0.4s ease;
+}
+
+.container a .header:hover::before {
+    width: 80%;
+}
+
+.container a .header:hover {
+    background: rgba(29, 185, 84, 0.05);
+    transform: translateY(-2px);
+}
+
+.container a .header:hover h1 {
+    color: var(--primary-color);
+}
+
+.container a .header:hover p {
+    color: var(--text-color);
+}
+
 .header {
     text-align: center;
     color: var(--text-color);
@@ -39,11 +79,13 @@ hr {
     font-size: 2.5em;
     font-weight: 700;
     margin-bottom: 10px;
+    transition: color 0.3s ease;
 }
 
 .header p {
     font-size: 1em;
     color: var(--text-color-dark);
+    transition: color 0.3s ease;
 }
 
 .book-container {
@@ -65,6 +107,7 @@ hr {
     justify-content: center;
     align-items: center;
     gap: 20px;
+    position: relative;
 }
 
 .book-header img {
@@ -92,6 +135,31 @@ footer {
 footer > p, footer a {
     font-size: 14px;
     color: var(--text-color-dark);
+    transition: color 0.3s ease;
+}
+
+footer a {
+    position: relative;
+    padding-bottom: 2px;
+}
+
+footer a::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 0;
+    height: 1px;
+    background: var(--primary-color);
+    transition: width 0.3s ease;
+}
+
+footer a:hover {
+    color: var(--primary-color);
+}
+
+footer a:hover::after {
+    width: 100%;
 }
 
 @media (max-width: 768px) {
