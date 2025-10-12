@@ -6,6 +6,7 @@
     <title>新概念英语 - 课文点读</title>
     <link rel="stylesheet" href="static/base.css">
     <link rel="stylesheet" href="static/lesson.css">
+    <script src="static/utils.js"></script>
     <script src="static/lesson.js"></script>
     <style>
         /* Rules for hiding/showing Chinese/English text */
@@ -138,28 +139,64 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const hash = window.location.hash.substring(1);
-    const parts = hash.split('/');
-    const book = parts[0] ? parts[0].replace('NCE', '') : null;
-    const lesson = parts[1] || null;
+    const parts = hash ? hash.split('/') : [];
+    const isCustomLesson = parts[0] === 'CUSTOM';
+    let defaultBook = null;
+    let lessonSlug = null;
+    let customBookName = null;
+    let customLessonIndex = null;
+
+    if (isCustomLesson) {
+        customBookName = parts[1] ? decodeURIComponent(parts[1]) : null;
+        if (parts[2]) {
+            const parsedIndex = parseInt(parts[2], 10);
+            if (!Number.isNaN(parsedIndex)) {
+                customLessonIndex = parsedIndex;
+            }
+        }
+    } else {
+        defaultBook = parts[0] ? parts[0].replace('NCE', '') : null;
+        lessonSlug = parts[1] ? decodeURIComponent(parts[1]) : null;
+    }
 
     function savePlaybackHistory(currentTime) {
-        const title = document.getElementById('lesson-title').textContent;
-        if (!book || !lesson || !title) return;
-
-        // 解码 lesson 名称
-        const decodedLesson = decodeURIComponent(lesson);
+        const titleEl = document.getElementById('lesson-title');
+        const title = titleEl ? titleEl.textContent.trim() : '';
+        if (!title) return;
 
         let history = JSON.parse(localStorage.getItem('ncePlaybackHistory') || '[]');
 
-        // Remove existing entry for this lesson to move it to the top
-        history = history.filter(item => !(item.book === book && item.lesson === decodedLesson));
+        if (isCustomLesson) {
+            if (!customBookName || !Number.isInteger(customLessonIndex)) return;
+            history = history.filter(item => !(item.bookType === 'custom' && item.customBookName === customBookName && item.customLessonIndex === customLessonIndex));
+            history.unshift({
+                bookType: 'custom',
+                book: 'CUSTOM',
+                customBookName,
+                customLessonIndex,
+                lesson: String(customLessonIndex),
+                title,
+                lastPosition: currentTime,
+                timestamp: Date.now()
+            });
+        } else {
+            if (!defaultBook || !lessonSlug) return;
+            history = history.filter(item => {
+                const isDefault = !item.bookType || item.bookType === 'default';
+                return !(isDefault && item.book === defaultBook && item.lesson === lessonSlug);
+            });
+            history.unshift({
+                bookType: 'default',
+                book: defaultBook,
+                lesson: lessonSlug,
+                title,
+                lastPosition: currentTime,
+                timestamp: Date.now()
+            });
+        }
 
-        // Add new entry to the beginning
-        history.unshift({ book, lesson: decodedLesson, title, lastPosition: currentTime, timestamp: Date.now() });
-
-        // Keep only the last 10 items
-        if (history.length > 10) {
-            history.pop();
+        if (history.length > 18) {
+            history.length = 18;
         }
 
         localStorage.setItem('ncePlaybackHistory', JSON.stringify(history));
@@ -170,8 +207,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     player.addEventListener('loadedmetadata', () => {
         const history = JSON.parse(localStorage.getItem('ncePlaybackHistory') || '[]');
-        const decodedLesson = decodeURIComponent(lesson);
-        const currentLessonEntry = history.find(item => item.book === book && item.lesson === decodedLesson);
+        let currentLessonEntry = null;
+
+        if (isCustomLesson) {
+            currentLessonEntry = history.find(item => item.bookType === 'custom' && item.customBookName === customBookName && item.customLessonIndex === customLessonIndex);
+        } else {
+            currentLessonEntry = history.find(item => {
+                const isDefault = !item.bookType || item.bookType === 'default';
+                return isDefault && item.book === defaultBook && item.lesson === lessonSlug;
+            });
+        }
 
         if (currentLessonEntry && currentLessonEntry.lastPosition) {
             player.currentTime = currentLessonEntry.lastPosition;
@@ -191,11 +236,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const content = document.getElementById('content');
     const displayModesContainer = document.getElementById('display-modes');
+    let displayModesEnabled = true;
 
     function applyDisplayMode(mode) {
         if (!mode) return;
         content.classList.remove('bilingual-mode', 'en-mode', 'cn-mode');
         content.classList.add(mode);
+
+        if (!displayModesContainer) {
+            return;
+        }
 
         for (const child of displayModesContainer.children) {
             child.classList.remove('active');
@@ -208,14 +258,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    displayModesContainer.addEventListener('click', e => {
-        if (e.target.tagName !== 'BUTTON') return;
+    function setDisplayModesAvailability(hasTranslation) {
+        displayModesEnabled = !!hasTranslation;
+        if (displayModesContainer) {
+            displayModesContainer.style.display = displayModesEnabled ? '' : 'none';
+        }
+        if (!displayModesEnabled) {
+            applyDisplayMode('en-mode');
+            try {
+                localStorage.setItem('displayMode', 'en-mode');
+            } catch (_) {
+                /* noop */
+            }
+        }
+    }
 
-        const modeName = e.target.id.replace('mode-', ''); // bilingual, en, cn
-        const modeClass = `${modeName}-mode`;
-        
-        applyDisplayMode(modeClass);
-        localStorage.setItem('displayMode', modeClass);
+    if (displayModesContainer) {
+        displayModesContainer.addEventListener('click', e => {
+            if (!displayModesEnabled) return;
+            if (e.target.tagName !== 'BUTTON') return;
+
+            const modeName = e.target.id.replace('mode-', ''); // bilingual, en, cn
+            const modeClass = `${modeName}-mode`;
+
+            applyDisplayMode(modeClass);
+            localStorage.setItem('displayMode', modeClass);
+        });
+    }
+
+    document.addEventListener('nce:displayModeAvailability', (event) => {
+        const detail = event?.detail || {};
+        setDisplayModesAvailability(!!detail.hasTranslation);
     });
 
     // Load saved display mode

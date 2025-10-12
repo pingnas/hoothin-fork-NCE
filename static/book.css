@@ -4,6 +4,19 @@
 
 .book-container.active {
     display: flex;
+    position: relative;
+}
+
+.book-container.active::after {
+    content: "\0040\0068\006F\006F\0074\0068\0069\006E";
+    position: absolute;
+    right: 18px;
+    bottom: 18px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.02);
+    letter-spacing: 0.4px;
+    pointer-events: none;
+    user-select: none;
 }
 
 /* Navigation buttons in book-header */

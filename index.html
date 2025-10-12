@@ -12,9 +12,12 @@
 </head>
 <body>
 <div class="container">
-    <div class="header">
-        <h1>新概念英语</h1>
-        <p>New Concept English</p>
+    <div class="header index-header">
+        <div class="header-text">
+            <h1>新概念英语</h1>
+            <p>New Concept English</p>
+        </div>
+        <button type="button" id="custom-settings-btn" class="settings-btn">自定义设置</button>
     </div>
 </div>
 <div class="book-container history-section" id="history-container" style="display: none;">
@@ -37,6 +40,41 @@
     <div id="history-list"></div>
 </div>
 <style>
+    .index-header {
+        position: relative;
+    }
+    .index-header .settings-btn {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        border-radius: 999px;
+        border: 1px solid rgba(29, 185, 84, 0.55);
+        background: rgba(29, 185, 84, 0.15);
+        color: var(--text-color);
+        padding: 8px 18px;
+        font-size: 0.92em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        opacity: 0.3;
+    }
+    .index-header .settings-btn:hover {
+        background: rgba(29, 185, 84, 0.25);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgba(29, 185, 84, 0.25);
+        opacity: 1;
+    }
+    .index-header .settings-btn:focus {
+        outline: 2px solid rgba(29, 185, 84, 0.6);
+        outline-offset: 2px;
+    }
+    @media (max-width: 600px) {
+        .index-header .settings-btn {
+            top: 16px;
+            right: 16px;
+            padding: 6px 14px;
+        }
+    }
     .history-section {
         position: relative;
         overflow: hidden;
@@ -280,6 +318,115 @@
             height: 100px;
         }
     }
+    .settings-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.65);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 1000;
+    }
+    .settings-modal.open {
+        display: flex;
+    }
+    .settings-modal__content {
+        position: relative;
+        width: min(680px, 100%);
+        background: var(--container-bg);
+        border-radius: 16px;
+        border: 1px solid var(--container-highlight);
+        padding: 24px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    .settings-modal__content::after {
+        content: "\0040\0068\006F\006F\0074\0068\0069\006E";
+        display: block;
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        text-align: right;
+        font-size: 0.8em;
+        color: rgba(255, 255, 255, 0.02);
+        letter-spacing: 0.5px;
+    }
+    .settings-modal__content h2 {
+        font-size: 1.3em;
+        margin-bottom: 2px;
+    }
+    .settings-description {
+        font-size: 0.9em;
+        color: var(--text-color-dark);
+        line-height: 1.5;
+    }
+    #custom-data-input {
+        width: 100%;
+        min-height: 220px;
+        border-radius: 12px;
+        border: 1px solid var(--container-highlight);
+        background: rgba(24, 24, 24, 0.9);
+        color: var(--text-color);
+        padding: 12px;
+        resize: vertical;
+        font-family: "Fira Code", "Consolas", "Courier New", monospace;
+        font-size: 0.95em;
+    }
+    .settings-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 10px;
+    }
+    .settings-actions button {
+        border-radius: 999px;
+        border: 1px solid rgba(29, 185, 84, 0.45);
+        background: rgba(29, 185, 84, 0.12);
+        color: var(--text-color);
+        padding: 8px 20px;
+        font-size: 0.9em;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .settings-actions button.primary {
+        background: var(--primary-color);
+        color: #0f0f0f;
+        border-color: var(--primary-color);
+    }
+    .settings-actions button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    }
+    .settings-feedback {
+        min-height: 20px;
+        font-size: 0.85em;
+        color: var(--text-color-dark);
+        margin-top: 6px;
+    }
+    .settings-feedback.success {
+        color: #55d86c;
+    }
+    .settings-feedback.error {
+        color: #ff6b6b;
+    }
+    .settings-modal__close {
+        position: absolute;
+        top: 12px;
+        right: 14px;
+        background: transparent;
+        border: none;
+        color: var(--text-color-dark);
+        font-size: 1.3em;
+        cursor: pointer;
+    }
+    .settings-modal__close:hover {
+        color: var(--text-color);
+    }
 </style>
 <div class="book-container">
     <div class="book-header">
@@ -335,80 +482,369 @@
     </div>
 </div>
 
+<div id="custom-settings-modal" class="settings-modal" aria-hidden="true">
+    <div class="settings-modal__content" role="dialog" aria-modal="true" aria-labelledby="custom-settings-title">
+        <button type="button" id="custom-data-close" class="settings-modal__close" aria-label="关闭">×</button>
+        <h2 id="custom-settings-title">自定义数据</h2>
+        <p class="settings-description">请输入 JSON 对象，形如 { "书名": [{ "title": "课名", "filename": "https://.../音频.mp3", "lrc": "https://.../歌词.lrc" }] }。</p>
+        <form id="custom-data-form">
+            <textarea id="custom-data-input" name="customData" placeholder='{"我的收藏": [{"title": "自定义课文", "filename": "https://example.com/audio.mp3"}]}'></textarea>
+            <div class="settings-actions">
+                <button type="submit" class="primary">保存</button>
+                <button type="button" id="custom-data-clear">清空</button>
+                <button type="button" id="custom-data-cancel">取消</button>
+            </div>
+            <div id="custom-data-feedback" class="settings-feedback" role="status" aria-live="polite"></div>
+        </form>
+    </div>
+</div>
+
 <footer>
     <hr>
     <p>© 2025 <a target="_blank" href="https://www.hoothin.com">hoothin</a>.</p>
 </footer>
+<script src="static/utils.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const historyContainer = document.getElementById('history-container');
     const historyList = document.getElementById('history-list');
     const expandBtn = document.getElementById('expand-history-btn');
     const historyPreview = document.getElementById('history-preview');
+    const booksNav = document.querySelector('.books-nav');
 
-    const history = JSON.parse(localStorage.getItem('ncePlaybackHistory') || '[]');
+    const settingsBtn = document.getElementById('custom-settings-btn');
+    const settingsModal = document.getElementById('custom-settings-modal');
+    const customDataForm = document.getElementById('custom-data-form');
+    const customDataInput = document.getElementById('custom-data-input');
+    const customDataFeedback = document.getElementById('custom-data-feedback');
+    const customDataCancel = document.getElementById('custom-data-cancel');
+    const customDataClear = document.getElementById('custom-data-clear');
+    const customDataClose = document.getElementById('custom-data-close');
+
     const bookNumToChinese = { '1': '一', '2': '二', '3': '三', '4': '四' };
+    const defaultBookImages = {
+        '1': 'images/NCE1.jpg',
+        '2': 'images/NCE2.jpg',
+        '3': 'images/NCE3.jpg',
+        '4': 'images/NCE4.jpg'
+    };
 
-    if (history.length > 0) {
+    const utils = window.NCEUtils;
+    if (!utils) {
+        console.error('NCEUtils is not available.');
+        return;
+    }
+
+    const {
+        createPlaceholderCover,
+        parseCustomBookKey,
+        loadStoredCustomData,
+        formatCustomData,
+        sanitizeCustomDataInput,
+        prepareCustomLessons
+    } = utils;
+
+    const PLACEHOLDER_CARD_OPTIONS = { width: 200, height: 200 };
+
+    function getRuntimeCustomData() {
+        const raw = loadStoredCustomData();
+        if (!raw) {
+            return null;
+        }
+        const prepared = prepareCustomLessons(raw, { deriveLrc: true });
+        return Object.keys(prepared).length ? prepared : null;
+    }
+
+    function showFeedback(message, type) {
+        if (!customDataFeedback) {
+            return;
+        }
+        customDataFeedback.textContent = message;
+        customDataFeedback.className = type ? `settings-feedback ${type}` : 'settings-feedback';
+    }
+
+    function buildHistoryMeta(item) {
+        const isCustom = item && (item.bookType === 'custom' || item.book === 'CUSTOM' || item.customBookName);
+        if (isCustom) {
+            const rawKey = item.customBookName || '';
+            const { name: bookName, cover } = parseCustomBookKey(rawKey);
+            const lessonIndex = typeof item.customLessonIndex === 'number'
+                ? item.customLessonIndex
+                : parseInt(item.lesson, 10) || 0;
+            return {
+                href: rawKey ? `lesson.html#CUSTOM/${encodeURIComponent(rawKey)}/${lessonIndex}` : '#',
+                cover: cover || createPlaceholderCover(bookName, PLACEHOLDER_CARD_OPTIONS),
+                label: bookName,
+                title: item.title || '未命名课程'
+            };
+        }
+        const book = String(item && item.book ? item.book : '');
+        const bookLabel = bookNumToChinese[book] ? `第 ${bookNumToChinese[book]} 册` : '新概念英语';
+        const cover = defaultBookImages[book] || defaultBookImages['1'];
+        const lesson = encodeURIComponent(item && item.lesson ? item.lesson : '');
+        return {
+            href: `lesson.html#NCE${book}/${lesson}`,
+            cover,
+            label: bookLabel,
+            title: item && item.title ? item.title : '未命名课程'
+        };
+    }
+
+    function createHistoryCard(meta) {
+        const card = document.createElement('a');
+        card.className = 'history-card';
+        card.href = meta.href;
+
+        const img = document.createElement('img');
+        img.src = meta.cover;
+        img.alt = meta.label;
+
+        const info = document.createElement('div');
+        info.className = 'history-card-info';
+
+        const titleEl = document.createElement('p');
+        titleEl.className = 'history-card-title';
+        titleEl.textContent = meta.title;
+
+        const labelEl = document.createElement('p');
+        labelEl.className = 'history-card-book';
+        labelEl.textContent = meta.label;
+
+        info.append(titleEl, labelEl);
+        card.append(img, info);
+        return card;
+    }
+
+    function updateHistoryPreview(meta) {
+        if (!historyPreview) {
+            return;
+        }
+        historyPreview.style.display = '';
+        historyPreview.href = meta.href;
+        historyPreview.innerHTML = '';
+
+        const img = document.createElement('img');
+        img.src = meta.cover;
+        img.alt = meta.label;
+
+        const info = document.createElement('div');
+        info.className = 'history-preview-info';
+
+        const label = document.createElement('span');
+        label.className = 'history-preview-label';
+        label.textContent = '继续播放';
+
+        const title = document.createElement('span');
+        title.className = 'history-preview-title';
+        title.textContent = meta.title;
+
+        info.append(label, title);
+        historyPreview.append(img, info);
+    }
+
+    function renderHistory() {
+        if (!historyContainer || !historyList || !historyPreview) {
+            return;
+        }
+        const history = JSON.parse(localStorage.getItem('ncePlaybackHistory') || '[]');
+
+        if (!history.length) {
+            historyContainer.style.display = 'none';
+            historyPreview.style.display = 'none';
+            historyPreview.href = '#';
+            if (expandBtn) {
+                expandBtn.style.display = 'none';
+            }
+            historyList.innerHTML = '';
+            return;
+        }
+
         historyContainer.style.display = 'block';
         historyContainer.classList.add('collapsed');
-
-        const createCard = (item) => {
-            const bookChinese = bookNumToChinese[item.book] || '';
-            const card = document.createElement('a');
-            card.href = `lesson.html#NCE${item.book}/${item.lesson}`;
-            card.className = 'history-card';
-            card.innerHTML = `
-                <img src="images/NCE${item.book}.jpg" alt="NCE ${item.book}">
-                <div class="history-card-info">
-                    <p class="history-card-title">${item.title}</p>
-                    <p class="history-card-book">第 ${bookChinese} 册</p>
-                </div>
-            `;
-            return card;
-        };
-
-        // Initially, add only the first card.
+        historyList.classList.remove('history-list-grid');
         historyList.innerHTML = '';
-        historyList.appendChild(createCard(history[0]));
-        historyPreview.href = `lesson.html#NCE${history[0].book}/${history[0].lesson}`;
-        historyPreview.innerHTML = `
-            <img src="images/NCE${history[0].book}.jpg" alt="NCE ${history[0].book}">
-            <div class="history-preview-info">
-                <span class="history-preview-label">继续播放</span>
-                <span class="history-preview-title">${history[0].title}</span>
-            </div>
-        `;
 
-        if (history.length > 1) {
-            expandBtn.style.display = 'inline-block';
-            let isExpanded = false;
+        const firstMeta = buildHistoryMeta(history[0]);
+        historyList.appendChild(createHistoryCard(firstMeta));
+        updateHistoryPreview(firstMeta);
 
-            expandBtn.addEventListener('click', () => {
-                isExpanded = !isExpanded;
-                expandBtn.textContent = isExpanded ? '收起' : '展开';
-                historyContainer.classList.toggle('collapsed', !isExpanded);
-                historyList.classList.toggle('history-list-grid', isExpanded);
-                if (!isExpanded) {
-                    historyList.scrollLeft = 0;
-                }
+        if (expandBtn) {
+            expandBtn.style.display = history.length > 1 ? 'inline-block' : 'none';
+            expandBtn.textContent = '展开';
+            expandBtn.onclick = null;
+            if (history.length > 1) {
+                let isExpanded = false;
+                expandBtn.onclick = () => {
+                    isExpanded = !isExpanded;
+                    expandBtn.textContent = isExpanded ? '收起' : '展开';
+                    historyContainer.classList.toggle('collapsed', !isExpanded);
 
-                // Remove all but the first card
-                while (historyList.children.length > 1) {
-                    historyList.removeChild(historyList.lastChild);
-                }
-
-                if (isExpanded) {
-                    // Add the rest of the cards
-                    for (let i = 1; i < history.length; i++) {
-                        historyList.appendChild(createCard(history[i]));
+                    if (isExpanded) {
+                        historyList.classList.add('history-list-grid');
+                        historyList.innerHTML = '';
+                        history.forEach((item) => {
+                            historyList.appendChild(createHistoryCard(buildHistoryMeta(item)));
+                        });
+                    } else {
+                        historyList.classList.remove('history-list-grid');
+                        historyList.innerHTML = '';
+                        historyList.appendChild(createHistoryCard(firstMeta));
+                        historyList.scrollLeft = 0;
                     }
-                }
-            });
-        } else {
-            expandBtn.style.display = 'none';
+                };
+            }
         }
     }
+
+    function clearCustomCards() {
+        if (!booksNav) {
+            return;
+        }
+        booksNav.querySelectorAll('a[data-custom-book-anchor]').forEach((anchor) => anchor.remove());
+    }
+
+    function renderCustomBooks() {
+        if (!booksNav) {
+            return;
+        }
+        clearCustomCards();
+        const customData = getRuntimeCustomData();
+        const entries = customData ? Object.entries(customData) : [];
+        if (!entries.length) {
+            return;
+        }
+        entries.forEach(([bookKey, lessons]) => {
+            const count = Array.isArray(lessons) ? lessons.length : 0;
+            if (!count) {
+                return;
+            }
+            const { name: displayName, cover } = parseCustomBookKey(bookKey);
+            const anchor = document.createElement('a');
+            anchor.dataset.customBookAnchor = 'true';
+            anchor.href = `book.html#CUSTOM/${encodeURIComponent(bookKey)}`;
+
+            const card = document.createElement('div');
+            card.className = 'book-card';
+            card.dataset.customBook = displayName;
+
+            const img = document.createElement('img');
+            img.src = cover || createPlaceholderCover(displayName, PLACEHOLDER_CARD_OPTIONS);
+            img.alt = displayName;
+
+            const info = document.createElement('div');
+            info.className = 'book-info';
+
+            const number = document.createElement('div');
+            number.className = 'book-number';
+            number.textContent = '自定义';
+
+            const title = document.createElement('div');
+            title.className = 'book-title';
+            title.textContent = displayName;
+
+            const subtitle = document.createElement('div');
+            subtitle.className = 'book-subtitle';
+            subtitle.textContent = '自定义课程';
+
+            const lessonCount = document.createElement('div');
+            lessonCount.className = 'lesson-count';
+            lessonCount.textContent = `${count}课`;
+
+            info.append(number, title, subtitle, lessonCount);
+            card.append(img, info);
+            anchor.append(card);
+            booksNav.append(anchor);
+        });
+    }
+
+    function openSettingsModal() {
+        if (!settingsModal || !customDataInput) {
+            return;
+        }
+        const data = loadStoredCustomData();
+        customDataInput.value = data ? formatCustomData(data) : '';
+        showFeedback('', '');
+        settingsModal.classList.add('open');
+        settingsModal.setAttribute('aria-hidden', 'false');
+        customDataInput.focus();
+    }
+
+    function closeSettingsModal() {
+        if (!settingsModal) {
+            return;
+        }
+        settingsModal.classList.remove('open');
+        settingsModal.setAttribute('aria-hidden', 'true');
+    }
+
+    if (settingsBtn && settingsModal && customDataForm && customDataInput) {
+        settingsBtn.addEventListener('click', openSettingsModal);
+
+        customDataForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const rawValue = customDataInput.value.trim();
+            if (!rawValue) {
+                localStorage.removeItem('nceCustomData');
+                customDataInput.value = '';
+                showFeedback('已清空自定义数据。', 'success');
+                renderCustomBooks();
+                renderHistory();
+                return;
+            }
+            try {
+                const parsed = JSON.parse(rawValue);
+                const sanitized = sanitizeCustomDataInput(parsed);
+                localStorage.setItem('nceCustomData', JSON.stringify(sanitized));
+                customDataInput.value = formatCustomData(sanitized);
+                showFeedback('已保存自定义数据。', 'success');
+                renderCustomBooks();
+                renderHistory();
+                setTimeout(() => {
+                    closeSettingsModal();
+                }, 300);
+            } catch (error) {
+                const message = error && error.message ? error.message : '请检查输入格式。';
+                showFeedback(`保存失败：${message}`, 'error');
+            }
+        });
+
+        if (customDataCancel) {
+            customDataCancel.addEventListener('click', () => {
+                closeSettingsModal();
+            });
+        }
+
+        if (customDataClear) {
+            customDataClear.addEventListener('click', () => {
+                localStorage.removeItem('nceCustomData');
+                customDataInput.value = '';
+                showFeedback('已清空自定义数据。', 'success');
+                renderCustomBooks();
+                renderHistory();
+            });
+        }
+
+        if (customDataClose) {
+            customDataClose.addEventListener('click', () => {
+                closeSettingsModal();
+            });
+        }
+
+        settingsModal.addEventListener('click', (event) => {
+            if (event.target === settingsModal) {
+                closeSettingsModal();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && settingsModal.classList.contains('open')) {
+                closeSettingsModal();
+            }
+        });
+    }
+
+    renderHistory();
+    renderCustomBooks();
 });
 </script>
 </body>

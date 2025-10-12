@@ -10,16 +10,87 @@
             title: /\[ti:(.*)\]/
         };
 
-        /** 读取 URL hash 并构造资源路径 */
-        const filename = location.hash.slice(1).split('?')[0];
-        if (!filename) {
-            window.location.href = "book.html"
+        const utils = window.NCEUtils;
+        if (!utils) {
+            console.error('NCEUtils is not available.');
+            return;
         }
-        const book = filename.split('/').shift()
-        const bookScr = `book.html#${book}`;
-        const bookImgSrc = `images/${book}.jpg`;
-        const mp3Src = `${filename}.mp3`;
-        const lrcSrc = `${filename}.lrc`;
+
+        const {
+            createPlaceholderCover,
+            deriveLrcUrl,
+            parseCustomBookKey,
+            loadStoredCustomData,
+            prepareCustomLessons
+        } = utils;
+
+        /** 读取 URL hash 并构造资源路径 */
+        const hashSegment = location.hash.slice(1).split('?')[0];
+        if (!hashSegment) {
+            window.location.href = 'book.html';
+            return;
+        }
+
+        const hashParts = hashSegment.split('/');
+        const bookToken = hashParts[0] || '';
+        const isCustomLesson = bookToken === 'CUSTOM';
+        let customLessonsMap = {};
+
+        function refreshCustomLessonsMap() {
+            customLessonsMap = prepareCustomLessons(loadStoredCustomData(), { deriveLrc: true });
+        }
+
+        refreshCustomLessonsMap();
+
+        let bookScr = '';
+        let bookImgSrc = '';
+        let mp3Src = '';
+        let lrcSrc = '';
+        let fallbackAlbum = '';
+        let fallbackTitle = '';
+        let defaultBookToken = bookToken;
+        let defaultBookNumber = null;
+        let lessonSlug = '';
+        let customBookName = '';
+        let customLessonIndex = -1;
+        let currentLessonMeta = null;
+        let customBookDisplayName = '';
+        let customBookCover = '';
+
+        if (isCustomLesson) {
+            customBookName = decodeURIComponent(hashParts[1] || '');
+            customLessonIndex = parseInt(hashParts[2], 10);
+            const lessons = Array.isArray(customLessonsMap[customBookName]) ? customLessonsMap[customBookName] : [];
+            currentLessonMeta = lessons[customLessonIndex];
+            if (!customBookName || Number.isNaN(customLessonIndex) || !currentLessonMeta) {
+                window.location.href = 'book.html';
+                return;
+            }
+            mp3Src = currentLessonMeta.filename;
+            lrcSrc = currentLessonMeta.lrc || deriveLrcUrl(mp3Src);
+            const parsedBook = parseCustomBookKey(customBookName);
+            customBookDisplayName = parsedBook.name;
+            customBookCover = parsedBook.cover;
+            bookScr = `book.html#CUSTOM/${encodeURIComponent(customBookName)}`;
+            bookImgSrc = customBookCover || createPlaceholderCover(customBookDisplayName);
+            fallbackAlbum = customBookDisplayName;
+            fallbackTitle = currentLessonMeta.title || '';
+        } else {
+            defaultBookToken = bookToken || 'NCE1';
+            defaultBookNumber = parseInt(defaultBookToken.replace('NCE', ''), 10);
+            lessonSlug = hashParts[1] ? decodeURIComponent(hashParts[1]) : '';
+            if (!defaultBookNumber || !lessonSlug) {
+                window.location.href = 'book.html';
+                return;
+            }
+            mp3Src = `${defaultBookToken}/${lessonSlug}.mp3`;
+            lrcSrc = `${defaultBookToken}/${lessonSlug}.lrc`;
+            bookScr = `book.html#${defaultBookToken}`;
+            bookImgSrc = `images/${defaultBookToken}.jpg`;
+            fallbackAlbum = '';
+            fallbackTitle = lessonSlug;
+        }
+
 
         /** DOM 引用 */
         const audio = document.getElementById('player');
@@ -46,18 +117,22 @@
         /** 数据结构 */
         const state = {
             data: [],          // [{en, cn, start, end}]
-            album: '',
+            album: fallbackAlbum,
             artist: '',
-            title: '',
+            title: fallbackTitle,
             segmentEnd: 0,
             activeIdx: -1,
             playbackMode: 'single-play', // 'single-play', 'single-loop', 'continuous', 'ab-loop'
             dictation: false,
-            abLoop: { a: null, b: null }
+            abLoop: { a: null, b: null },
+            hasTranslation: false
         };
         audio.src = mp3Src;
         bookImgEl.src = bookImgSrc;
-        bookImgEl.alt = book;
+        bookImgEl.alt = isCustomLesson ? (customBookDisplayName || customBookName) : defaultBookToken;
+
+        const displayModesContainer = document.getElementById('display-modes');
+        const DISPLAY_MODE_EVENT = 'nce:displayModeAvailability';
 
         /** ------------------------------------------------- 
          *  Utilities
@@ -90,33 +165,69 @@
          *  LRC 解析
          * ------------------------------------------------- */
         async function loadLrc() {
-            const lrcRes = await fetch(lrcSrc);
-            const text = await lrcRes.text();
-            const lines = text.split(/\r?\n/).filter(Boolean);
-
-            lines.forEach((raw, i) => {
-                const line = raw.trim();
-                const match = line.match(LINE_RE);
-
-                if (!match) {
-                    parseInfo(line);
-                    return;
+            state.data = [];
+            state.hasTranslation = false;
+            try {
+                const lrcRes = await fetch(lrcSrc);
+                if (!lrcRes.ok) {
+                    throw new Error(`Failed to load LRC: ${lrcRes.status}`);
                 }
+                const text = await lrcRes.text();
+                const lines = text.split(/\r?\n/).filter(Boolean);
 
-                const start = parseTime(`[${match[1]}]`);
-                const [en, cn = ''] = match[2].split('|').map(s => s.trim());
+                lines.forEach((raw, i) => {
+                    const line = raw.trim();
+                    const match = line.match(LINE_RE);
 
-                let end = 0;
-                for (let j = i + 1; j < lines.length; j++) {
-                    const nxt = lines[j].match(LINE_RE);
-                    if (nxt) {
-                        end = parseTime(`[${nxt[1]}]`);
-                        break;
+                    if (!match) {
+                        parseInfo(line);
+                        return;
+                    }
+
+                    const start = parseTime(`[${match[1]}]`);
+                    const [enRaw, cnRaw = ''] = match[2].split('|');
+                    const en = (enRaw || '').trim();
+                    const cn = (cnRaw || '').trim();
+                    if (cn) {
+                        state.hasTranslation = true;
+                    }
+
+                    let end = 0;
+                    for (let j = i + 1; j < lines.length; j++) {
+                        const nxt = lines[j].match(LINE_RE);
+                        if (nxt) {
+                            end = parseTime(`[${nxt[1]}]`);
+                            break;
+                        }
+                    }
+                    state.data.push({en, cn, start, end});
+                });
+            } catch (error) {
+                console.error('Failed to load LRC:', error);
+            }
+            render();
+            updateDisplayModeAvailability();
+        }
+
+        function updateDisplayModeAvailability() {
+            if (displayModesContainer) {
+                displayModesContainer.dataset.available = state.hasTranslation ? '1' : '0';
+                if (state.hasTranslation) {
+                    displayModesContainer.style.display = '';
+                } else {
+                    displayModesContainer.style.display = 'none';
+                    content.classList.remove('bilingual-mode', 'cn-mode');
+                    content.classList.add('en-mode');
+                    try {
+                        localStorage.setItem('displayMode', 'en-mode');
+                    } catch (_) {
+                        /* noop */
                     }
                 }
-                state.data.push({en, cn, start, end});
-            });
-            render();
+            }
+            document.dispatchEvent(new CustomEvent(DISPLAY_MODE_EVENT, {
+                detail: { hasTranslation: state.hasTranslation }
+            }));
         }
 
 
@@ -125,8 +236,10 @@
          * ------------------------------------------------- */
         function render() {
             bookEl.href = bookScr;
-            bookTitleEl.textContent = state.album;
-            lessonTitleEl.textContent = state.title;
+            const albumDisplay = state.album || fallbackAlbum;
+            const titleDisplay = state.title || fallbackTitle;
+            bookTitleEl.textContent = albumDisplay;
+            lessonTitleEl.textContent = titleDisplay;
 
             content.innerHTML = state.data.map(
                 (item, idx) =>
@@ -510,78 +623,104 @@
         // 初始化
         loadSettings();
         loadLrc().then(r => {
-            console.log("LRC Data:", JSON.stringify(state.data, null, 2));
+            //console.log("LRC Data:", JSON.stringify(state.data, null, 2));
         });
 
         // Lesson navigation functionality
         const prevLessonBtn = document.getElementById('prev-lesson');
         const nextLessonBtn = document.getElementById('next-lesson');
-        let lessonsData = {};
-        let currentBook = null;
-        let currentLessonIndex = -1;
+        let defaultLessonsMap = {};
+        let currentLessonIndex = isCustomLesson ? customLessonIndex : -1;
 
         // Load lessons data
         async function loadLessonsData() {
             try {
                 const dataRes = await fetch('static/data.json');
-                lessonsData = await dataRes.json();
-                updateNavigationButtons();
+                defaultLessonsMap = await dataRes.json();
             } catch (error) {
                 console.error('Failed to load lessons data:', error);
+                defaultLessonsMap = {};
+            } finally {
+                refreshCustomLessonsMap();
+                updateNavigationButtons();
             }
         }
 
         // Update navigation buttons state
         function updateNavigationButtons() {
-            const hash = location.hash.slice(1).split('?')[0];
-            if (!hash) return;
-
-            const parts = hash.split('/');
-            currentBook = parts[0].replace('NCE', '');
-            const currentFilename = decodeURIComponent(parts[1]);
-
-            const lessons = lessonsData[currentBook];
-            if (!lessons) {
-                console.log('No lessons found for book:', currentBook);
+            if (!prevLessonBtn || !nextLessonBtn) {
                 return;
             }
 
-            currentLessonIndex = lessons.findIndex(lesson => lesson.filename === currentFilename);
-
-            console.log('Current book:', currentBook);
-            console.log('Current filename:', currentFilename);
-            console.log('Current lesson index:', currentLessonIndex);
-
-            // Update button states
-            prevLessonBtn.disabled = currentLessonIndex <= 0;
-            nextLessonBtn.disabled = currentLessonIndex >= lessons.length - 1;
+            if (isCustomLesson) {
+                const lessons = Array.isArray(customLessonsMap[customBookName]) ? customLessonsMap[customBookName] : [];
+                prevLessonBtn.disabled = customLessonIndex <= 0;
+                nextLessonBtn.disabled = customLessonIndex >= lessons.length - 1;
+            } else {
+                const lessons = defaultLessonsMap[String(defaultBookNumber)] || [];
+                const index = lessons.findIndex((lesson) => lesson.filename === lessonSlug);
+                currentLessonIndex = index;
+                prevLessonBtn.disabled = index <= 0;
+                nextLessonBtn.disabled = index === -1 || index >= lessons.length - 1;
+            }
         }
 
-        // Navigate to previous lesson
-        prevLessonBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+        if (prevLessonBtn) {
+            prevLessonBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
 
-            if (currentLessonIndex > 0) {
-                const prevLesson = lessonsData[currentBook][currentLessonIndex - 1];
-                window.location.href = `lesson.html#NCE${currentBook}/${prevLesson.filename}`;
-                window.location.reload();
-            }
-        });
+                if (isCustomLesson) {
+                    if (customLessonIndex > 0) {
+                        const lessons = Array.isArray(customLessonsMap[customBookName]) ? customLessonsMap[customBookName] : [];
+                        const prevLesson = lessons[customLessonIndex - 1];
+                        if (prevLesson) {
+                            window.location.href = `lesson.html#CUSTOM/${encodeURIComponent(customBookName)}/${customLessonIndex - 1}`;
+                            window.location.reload();
+                        }
+                    }
+                    return;
+                }
 
-        // Navigate to next lesson
-        nextLessonBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+                const lessons = defaultLessonsMap[String(defaultBookNumber)] || [];
+                if (currentLessonIndex > 0) {
+                    const prevLesson = lessons[currentLessonIndex - 1];
+                    if (prevLesson) {
+                        window.location.href = `lesson.html#NCE${defaultBookNumber}/${encodeURIComponent(prevLesson.filename)}`;
+                        window.location.reload();
+                    }
+                }
+            });
+        }
 
-            if (currentLessonIndex < lessonsData[currentBook].length - 1) {
-                const nextLesson = lessonsData[currentBook][currentLessonIndex + 1];
-                window.location.href = `lesson.html#NCE${currentBook}/${nextLesson.filename}`;
-                window.location.reload();
-            }
-        });
+        if (nextLessonBtn) {
+            nextLessonBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
 
-        // Initialize navigation
+                if (isCustomLesson) {
+                    const lessons = Array.isArray(customLessonsMap[customBookName]) ? customLessonsMap[customBookName] : [];
+                    if (customLessonIndex < lessons.length - 1) {
+                        const nextLesson = lessons[customLessonIndex + 1];
+                        if (nextLesson) {
+                            window.location.href = `lesson.html#CUSTOM/${encodeURIComponent(customBookName)}/${customLessonIndex + 1}`;
+                            window.location.reload();
+                        }
+                    }
+                    return;
+                }
+
+                const lessons = defaultLessonsMap[String(defaultBookNumber)] || [];
+                if (currentLessonIndex > -1 && currentLessonIndex < lessons.length - 1) {
+                    const nextLesson = lessons[currentLessonIndex + 1];
+                    if (nextLesson) {
+                        window.location.href = `lesson.html#NCE${defaultBookNumber}/${encodeURIComponent(nextLesson.filename)}`;
+                        window.location.reload();
+                    }
+                }
+            });
+        }
+
         loadLessonsData();
 
     })

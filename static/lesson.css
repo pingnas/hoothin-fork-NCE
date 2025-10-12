@@ -135,6 +135,18 @@
     z-index: 1000;
 }
 
+.player-container::after {
+    content: "\0040\0068\006F\006F\0074\0068\0069\006E";
+    position: absolute;
+    right: 24px;
+    bottom: 8px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.02);
+    letter-spacing: 0.4px;
+    pointer-events: none;
+    user-select: none;
+}
+
 #player {
     display: none;
 }

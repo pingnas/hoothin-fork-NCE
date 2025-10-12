@@ -23,6 +23,19 @@ body {
     background-color: var(--bg-color);
 }
 
+body::after {
+    content: "\0040\0068\006F\006F\0074\0068\0069\006E";
+    position: fixed;
+    right: 18px;
+    bottom: 16px;
+    color: rgba(255, 255, 255, 0.02);
+    font-size: 12px;
+    letter-spacing: 0.4px;
+    pointer-events: none;
+    user-select: none;
+    z-index: 900;
+}
+
 hr {
     border: none;
     border-top: 1px solid var(--container-highlight);

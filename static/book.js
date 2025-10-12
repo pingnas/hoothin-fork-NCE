@@ -1,106 +1,317 @@
 (() => {
     document.addEventListener('DOMContentLoaded', () => {
-        /** 读取 URL hash 并构造资源路径 */
-        const idx = location.hash.slice(1).split('?')[0];
-        let bookNumber = parseInt(idx.replace("NCE", "")) || 1;
-        let lessonsData = {}
+        const DEFAULT_BOOKS = [1, 2, 3, 4];
+        const defaultContainers = DEFAULT_BOOKS.map((num) => document.getElementById(`book-${num}`));
+        const lessonContainers = DEFAULT_BOOKS.reduce((acc, num) => {
+            acc[num] = document.getElementById(`book-${num}-lessons`);
+            return acc;
+        }, {});
+        const prevButtons = document.querySelectorAll('#prev-book');
+        const nextButtons = document.querySelectorAll('#next-book');
+        const customRoot = document.getElementById('custom-books-root');
 
-        // 显示当前课本
-        function showBook(num) {
-            // 隐藏所有课本
-            for (let i = 1; i <= 4; i++) {
-                document.getElementById(`book-${i}`).classList.remove('active');
-            }
-            // 显示当前课本
-            document.getElementById(`book-${num}`).classList.add('active');
+        let defaultLessonsData = {};
+        let customLessonsData = {};
+        let customBookNames = [];
+        const history = JSON.parse(localStorage.getItem('ncePlaybackHistory') || '[]');
 
-            // 更新按钮状态
-            const prevButtons = document.querySelectorAll('#prev-book');
-            const nextButtons = document.querySelectorAll('#next-book');
-
-            prevButtons.forEach(btn => btn.disabled = (num === 1));
-            nextButtons.forEach(btn => btn.disabled = (num === 4));
-
-            // 更新 URL hash
-            location.hash = `NCE${num}`;
-            bookNumber = num;
+        let currentDefaultBook = 1;
+        let currentCustomBookIndex = 0;
+        let customElements = null;
+        const utils = window.NCEUtils;
+        if (!utils) {
+            console.error('NCEUtils is not available.');
+            return;
         }
 
-        showBook(bookNumber);
+        const {
+            createPlaceholderCover,
+            parseCustomBookKey,
+            getCustomLessonsWithDefaults
+        } = utils;
 
-        // 为所有上一本按钮添加事件监听
-        document.querySelectorAll('#prev-book').forEach(btn => {
-            btn.addEventListener('click', () => {
-                if (bookNumber > 1) {
-                    showBook(bookNumber - 1);
-                }
-            });
-        });
-
-        // 为所有下一本按钮添加事件监听
-        document.querySelectorAll('#next-book').forEach(btn => {
-            btn.addEventListener('click', () => {
-                if (bookNumber < 4) {
-                    showBook(bookNumber + 1);
-                }
-            });
-        });
-
-        // 监听 hash 变化
-        window.addEventListener('hashchange', () => {
-            const idx = location.hash.slice(1).split('?')[0];
-            const newBookNumber = parseInt(idx.replace("NCE", "")) || 1;
-            if (newBookNumber !== bookNumber && newBookNumber >= 1 && newBookNumber <= 4) {
-                showBook(newBookNumber);
+        function parseHash() {
+            const hash = (location.hash || '').slice(1).split('?')[0];
+            if (!hash) {
+                return { type: 'default', defaultBook: 1 };
             }
-        });
-
-        loadData().then(() => {
-            // 初始化所有课文列表
-            for (let i = 1; i <= 4; i++) {
-                generateLessons(i);
+            const parts = hash.split('/');
+            const key = parts[0];
+            if (key === 'CUSTOM') {
+                const bookName = decodeURIComponent(parts[1] || '');
+                return { type: 'custom', customBookName: bookName };
             }
-        })
-
-        async function loadData() {
-            const dataSrc = 'static/data.json';
-            const dataRes = await fetch(dataSrc);
-            lessonsData = await dataRes.json();
+            const num = parseInt(key.replace('NCE', ''), 10);
+            if (!Number.isInteger(num) || num < 1 || num > 4) {
+                return { type: 'default', defaultBook: 1 };
+            }
+            return { type: 'default', defaultBook: num };
         }
 
-        // 生成课文列表的函数
-        function generateLessons(bookNumber) {
-            const container = document.getElementById(`book-${bookNumber}-lessons`);
-            const lessons = lessonsData[bookNumber];
+        function getDefaultLastRead(bookNumber) {
+            const target = String(bookNumber);
+            return history.find((entry) => {
+                if (!entry) return false;
+                const isDefault = !entry.bookType || entry.bookType === 'default';
+                return isDefault && entry.book === target;
+            });
+        }
 
-            // 获取播放历史
-            const history = JSON.parse(localStorage.getItem('ncePlaybackHistory') || '[]');
-            // 找到当前这册书最近阅读的课程
-            const lastReadForBook = history.find(item => item.book === String(bookNumber));
+        function getCustomLastRead(bookName) {
+            return history.find((entry) => {
+                if (!entry) return false;
+                if (entry.bookType === 'custom') {
+                    return entry.customBookName === bookName;
+                }
+                return entry.book === 'CUSTOM' && entry.customBookName === bookName;
+            });
+        }
+
+        function renderDefaultLessons(bookNumber) {
+            const container = lessonContainers[bookNumber];
+            if (!container) {
+                return;
+            }
+            const lessons = defaultLessonsData[bookNumber];
+            if (!Array.isArray(lessons)) {
+                container.innerHTML = '';
+                return;
+            }
+            const lastRead = getDefaultLastRead(bookNumber);
+            const lastLesson = lastRead ? lastRead.lesson : null;
 
             container.innerHTML = '';
             lessons.forEach((lesson, index) => {
-                let lessonNumber = index + 1
+                let lessonNumber = index + 1;
                 if (bookNumber === 1) {
                     lessonNumber = index * 2 + 1;
-                    lessonNumber = `${lessonNumber}&${lessonNumber+1}`;
+                    lessonNumber = `${lessonNumber}&${lessonNumber + 1}`;
                 }
-                const lessonElement = document.createElement('a');
-                lessonElement.href = `lesson.html#NCE${bookNumber}/${lesson.filename}`;
-                lessonElement.className = 'lesson-item';
-
-                // 检查是否是这册书上一次阅读的课程
-                if (lastReadForBook && lastReadForBook.lesson === lesson.filename) {
-                    lessonElement.classList.add('last-read');
+                const element = document.createElement('a');
+                element.href = `lesson.html#NCE${bookNumber}/${encodeURIComponent(lesson.filename)}`;
+                element.className = 'lesson-item';
+                if (lastLesson && lastLesson === lesson.filename) {
+                    element.classList.add('last-read');
                 }
-
-                lessonElement.innerHTML = `
+                element.innerHTML = `
                     <span class="lesson-number">第${lessonNumber}课</span>
                     <span class="lesson-title">${lesson.title}</span>
                 `;
-                container.appendChild(lessonElement);
+                container.appendChild(element);
             });
         }
 
-    })
-})()
+        function renderAllDefaultLessons() {
+            DEFAULT_BOOKS.forEach(renderDefaultLessons);
+        }
+
+        function setDefaultNavState(bookNumber) {
+            prevButtons.forEach((btn) => {
+                btn.disabled = bookNumber === 1;
+            });
+            nextButtons.forEach((btn) => {
+                btn.disabled = bookNumber === 4;
+            });
+        }
+
+        function hideAllContainers() {
+            defaultContainers.forEach((container) => {
+                if (container) {
+                    container.classList.remove('active');
+                }
+            });
+            if (customElements) {
+                customElements.container.classList.remove('active');
+            }
+        }
+
+        function renderDefaultBook(bookNumber) {
+            if (!lessonContainers[bookNumber]) {
+                return;
+            }
+            hideAllContainers();
+            const container = document.getElementById(`book-${bookNumber}`);
+            if (container) {
+                container.classList.add('active');
+            }
+            setDefaultNavState(bookNumber);
+            currentDefaultBook = bookNumber;
+        }
+
+        function ensureCustomElements() {
+            if (customElements || !customRoot) {
+                return customElements;
+            }
+            const container = document.createElement('div');
+            container.id = 'custom-book-container';
+            container.className = 'book-container';
+
+            container.innerHTML = `
+                <div class="book-header">
+                    <button id="custom-prev-book" class="nav-btn" title="上一本">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+                    <img id="custom-book-cover" src="" alt="Custom Book">
+                    <div class="book-title">
+                        <h3 id="custom-book-title"></h3>
+                        <hr>
+                        <p id="custom-book-subtitle"></p>
+                    </div>
+                    <button id="custom-next-book" class="nav-btn" title="下一本">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
+                <hr>
+                <div class="lessons-grid" id="custom-lessons"></div>
+            `;
+            customRoot.appendChild(container);
+
+            const elements = {
+                container,
+                prevBtn: container.querySelector('#custom-prev-book'),
+                nextBtn: container.querySelector('#custom-next-book'),
+                cover: container.querySelector('#custom-book-cover'),
+                title: container.querySelector('#custom-book-title'),
+                subtitle: container.querySelector('#custom-book-subtitle'),
+                lessons: container.querySelector('#custom-lessons')
+            };
+
+            elements.prevBtn.addEventListener('click', () => {
+                if (currentCustomBookIndex > 0) {
+                    const target = customBookNames[currentCustomBookIndex - 1];
+                    location.hash = `CUSTOM/${encodeURIComponent(target)}`;
+                }
+            });
+
+            elements.nextBtn.addEventListener('click', () => {
+                if (currentCustomBookIndex < customBookNames.length - 1) {
+                    const target = customBookNames[currentCustomBookIndex + 1];
+                    location.hash = `CUSTOM/${encodeURIComponent(target)}`;
+                }
+            });
+
+            customElements = elements;
+            return customElements;
+        }
+
+        function renderCustomBook(bookName) {
+            if (!customBookNames.length) {
+                location.hash = `NCE${currentDefaultBook}`;
+                renderDefaultBook(currentDefaultBook);
+                return;
+            }
+
+            let targetName = bookName || customBookNames[0];
+            let idx = customBookNames.indexOf(targetName);
+            if (idx === -1) {
+                idx = 0;
+                targetName = customBookNames[0];
+            }
+
+            const elements = ensureCustomElements();
+            if (!elements) {
+                return;
+            }
+
+            hideAllContainers();
+            elements.container.classList.add('active');
+
+            const lessons = customLessonsData[targetName] || [];
+            const { name: displayName, cover } = parseCustomBookKey(targetName);
+            elements.cover.src = cover || createPlaceholderCover(displayName);
+            elements.cover.alt = displayName;
+            elements.title.textContent = displayName;
+            elements.subtitle.textContent = lessons.length ? `共 ${lessons.length} 课` : '暂无课程';
+            elements.lessons.innerHTML = '';
+
+            const lastRead = getCustomLastRead(targetName);
+            let lastIndex = Number.isInteger(lastRead?.customLessonIndex) ? lastRead.customLessonIndex : NaN;
+            if (Number.isNaN(lastIndex) && lastRead && typeof lastRead.lesson === 'string') {
+                const parsed = parseInt(lastRead.lesson, 10);
+                if (!Number.isNaN(parsed)) {
+                    lastIndex = parsed;
+                }
+            }
+
+            lessons.forEach((lesson, lessonIdx) => {
+                const item = document.createElement('a');
+                item.className = 'lesson-item';
+                item.href = `lesson.html#CUSTOM/${encodeURIComponent(targetName)}/${lessonIdx}`;
+                item.innerHTML = `
+                    <span class="lesson-number">第${lessonIdx + 1}课</span>
+                    <span class="lesson-title">${lesson.title}</span>
+                `;
+                if (!Number.isNaN(lastIndex) && lastIndex === lessonIdx) {
+                    item.classList.add('last-read');
+                }
+                elements.lessons.appendChild(item);
+            });
+
+            elements.prevBtn.disabled = idx <= 0;
+            elements.nextBtn.disabled = idx >= customBookNames.length - 1;
+
+            currentCustomBookIndex = idx;
+            const expectedHash = `#CUSTOM/${encodeURIComponent(targetName)}`;
+            if (location.hash !== expectedHash) {
+                location.hash = `CUSTOM/${encodeURIComponent(targetName)}`;
+            }
+        }
+
+        function applyHashView() {
+            const info = parseHash();
+            if (info.type === 'custom') {
+                renderCustomBook(info.customBookName);
+            } else {
+                renderDefaultBook(info.defaultBook);
+                const expectedHash = `#NCE${info.defaultBook}`;
+                if (location.hash !== expectedHash) {
+                    location.hash = `NCE${info.defaultBook}`;
+                }
+            }
+        }
+
+        prevButtons.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                if (currentDefaultBook > 1) {
+                    location.hash = `NCE${currentDefaultBook - 1}`;
+                }
+            });
+        });
+
+        nextButtons.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                if (currentDefaultBook < 4) {
+                    location.hash = `NCE${currentDefaultBook + 1}`;
+                }
+            });
+        });
+
+        window.addEventListener('hashchange', () => {
+            applyHashView();
+        });
+
+        async function loadData() {
+            try {
+                const dataRes = await fetch('static/data.json');
+                defaultLessonsData = await dataRes.json();
+            } catch (error) {
+                console.error('Failed to load default lessons data:', error);
+                defaultLessonsData = {};
+            }
+            customLessonsData = getCustomLessonsWithDefaults();
+            customBookNames = Object.keys(customLessonsData).filter((name) => {
+                const lessons = customLessonsData[name];
+                return Array.isArray(lessons) && lessons.length > 0;
+            });
+        }
+
+        loadData().then(() => {
+            renderAllDefaultLessons();
+            applyHashView();
+        });
+    });
+})();
