@@ -113,6 +113,9 @@
         const timeDisplay = document.getElementById('time-display');
         const volumeBtn = document.getElementById('volume-btn');
         const volumeSlider = document.getElementById('volume-slider');
+        let isDraggingProgress = false;
+        let wasPlayingBeforeDrag = false;
+        let pendingSeekTime = null;
 
         /** 数据结构 */
         const state = {
@@ -141,6 +144,44 @@
             const minutes = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
             return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        function findSentenceIndexAtTime(time) {
+            if (!Array.isArray(state.data) || !state.data.length) {
+                return -1;
+            }
+            return state.data.findIndex(
+                item => time >= item.start && (time < item.end || !item.end)
+            );
+        }
+
+        function updateHighlightForTime(time, options = {}) {
+            const idx = findSentenceIndexAtTime(time);
+            if (idx === -1) return;
+            highlight(idx, options);
+            const sentence = state.data[idx];
+            if (sentence) {
+                state.segmentEnd = sentence.end;
+            }
+        }
+
+        function updateSeekFromClientX(clientX) {
+            const duration = audio.duration;
+            if (!duration || Number.isNaN(duration)) {
+                return null;
+            }
+            const rect = progressBar.getBoundingClientRect();
+            const width = rect.width;
+            if (!width) {
+                return null;
+            }
+            let offsetX = clientX - rect.left;
+            offsetX = Math.min(Math.max(offsetX, 0), width);
+            const ratio = offsetX / width;
+            const targetTime = ratio * duration;
+            progress.style.width = `${ratio * 100}%`;
+            timeDisplay.textContent = `${formatTime(targetTime)} / ${formatTime(duration)}`;
+            return targetTime;
         }
 
         /** ------------------------------------------------- 
@@ -373,8 +414,75 @@
             const clickX = e.clientX - rect.left;
             const width = progressBar.clientWidth;
             const duration = audio.duration;
-            audio.currentTime = (clickX / width) * duration;
+            if (!width || !duration || Number.isNaN(duration)) {
+                return;
+            }
+            const targetTime = (clickX / width) * duration;
+            audio.currentTime = targetTime;
+            updateHighlightForTime(targetTime, { force: true });
         });
+
+        progressBar.addEventListener('pointerdown', e => {
+            if (e.pointerType === 'touch') {
+                e.preventDefault();
+            }
+            const targetTime = updateSeekFromClientX(e.clientX);
+            if (targetTime === null) {
+                return;
+            }
+            isDraggingProgress = true;
+            wasPlayingBeforeDrag = !audio.paused;
+            if (wasPlayingBeforeDrag) {
+                audio.pause();
+            }
+            if (progressBar.setPointerCapture) {
+                try {
+                    progressBar.setPointerCapture(e.pointerId);
+                } catch (_) {
+                    /* noop */
+                }
+            }
+            pendingSeekTime = targetTime;
+            updateHighlightForTime(targetTime, { force: true });
+        });
+
+        progressBar.addEventListener('pointermove', e => {
+            if (!isDraggingProgress) return;
+            if (e.pointerType === 'touch') {
+                e.preventDefault();
+            }
+            const targetTime = updateSeekFromClientX(e.clientX);
+            if (targetTime === null) {
+                return;
+            }
+            pendingSeekTime = targetTime;
+            updateHighlightForTime(targetTime, { force: true });
+        });
+
+        function finalizeSeek(e) {
+            if (!isDraggingProgress) return;
+            isDraggingProgress = false;
+            if (progressBar.releasePointerCapture) {
+                try {
+                    progressBar.releasePointerCapture(e.pointerId);
+                } catch (_) {
+                    /* noop */
+                }
+            }
+            if (pendingSeekTime !== null) {
+                audio.currentTime = pendingSeekTime;
+            }
+            if (wasPlayingBeforeDrag) {
+                const playPromise = audio.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(() => {});
+                }
+            }
+            pendingSeekTime = null;
+        }
+
+        progressBar.addEventListener('pointerup', finalizeSeek);
+        progressBar.addEventListener('pointercancel', finalizeSeek);
 
         volumeBtn.addEventListener('click', () => {
             audio.muted = !audio.muted;
@@ -576,9 +684,7 @@
             }
 
             // Find and highlight current sentence
-            const idx = state.data.findIndex(
-                item => cur >= item.start && (cur < item.end || !item.end)
-            );
+            const idx = findSentenceIndexAtTime(cur);
             if (idx !== -1) highlight(idx);
         });
 
