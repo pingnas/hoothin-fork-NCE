@@ -171,6 +171,179 @@
         return prepareCustomLessons(raw, { deriveLrc: true });
     }
 
+    function normalizeShareOptions(rawOptions = {}) {
+        const win = typeof window !== 'undefined' ? window : null;
+        const doc = typeof document !== 'undefined' ? document : null;
+        const baseUrl = rawOptions.url || (win && win.location ? win.location.href : '');
+        let url = String(baseUrl || '').trim();
+        if (url && win) {
+            try {
+                url = new URL(url, win.location.href).toString();
+            } catch (_) {
+                url = String(url);
+            }
+        }
+        const titleSource = rawOptions.title || (doc ? doc.title : '');
+        const descriptionSource = rawOptions.description || rawOptions.summary || '';
+        const textSource = rawOptions.text || '';
+        const imageSource = rawOptions.image || rawOptions.pic || '';
+        return {
+            url,
+            title: String(titleSource || '').trim(),
+            description: String(descriptionSource || '').trim(),
+            text: String(textSource || '').trim(),
+            image: String(imageSource || '').trim()
+        };
+    }
+
+    function detectShareEnvironment() {
+        const win = typeof window !== 'undefined' ? window : null;
+        if (!win || typeof navigator === 'undefined') {
+            return {
+                isMobile: false,
+                isWeChatBrowser: false
+            };
+        }
+        const ua = navigator.userAgent || navigator.vendor || '';
+        const isWeChatBrowser = /micromessenger/i.test(ua);
+        const isMobile = /android|iphone|ipad|ipod|mobile/i.test(ua);
+        return {
+            isMobile,
+            isWeChatBrowser
+        };
+    }
+
+    function buildSharePayload(target, options = {}) {
+        const normalizedTarget = String(target || '').toLowerCase();
+        const { url, title, description, text, image } = normalizeShareOptions(options);
+        const composedText = [text, title, description].filter(Boolean).join(' ') || url;
+        const searchPic = options.searchPic === false ? '0' : '1';
+        switch (normalizedTarget) {
+            case 'weibo': {
+                const params = new URLSearchParams();
+                if (url) params.set('url', url);
+                if (composedText) params.set('title', composedText);
+                if (image) params.set('pic', image);
+                params.set('searchPic', searchPic);
+                return {
+                    platform: 'weibo',
+                    mode: 'popup',
+                    url: `https://service.weibo.com/share/share.php?${params.toString()}`
+                };
+            }
+            case 'qq': {
+                const params = new URLSearchParams();
+                if (url) params.set('url', url);
+                if (title || text) params.set('title', title || text);
+                if (description) params.set('summary', description);
+                if (image) params.set('pics', image);
+                return {
+                    platform: 'qq',
+                    mode: 'popup',
+                    url: `https://connect.qq.com/widget/shareqq/index.html?${params.toString()}`
+                };
+            }
+            case 'qzone': {
+                const params = new URLSearchParams();
+                if (url) params.set('url', url);
+                if (title) params.set('title', title);
+                if (description) params.set('desc', description);
+                if (composedText) params.set('summary', composedText);
+                if (image) params.set('pics', image);
+                return {
+                    platform: 'qzone',
+                    mode: 'popup',
+                    url: `https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?${params.toString()}`
+                };
+            }
+            case 'wechat': {
+                const env = detectShareEnvironment();
+                if (env.isWeChatBrowser) {
+                    return {
+                        platform: 'wechat',
+                        mode: 'wechat-internal',
+                        url,
+                        title: title || composedText,
+                        text: composedText
+                    };
+                }
+                const preferNative = env.isMobile && typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+                if (preferNative) {
+                    return {
+                        platform: 'wechat',
+                        mode: 'native',
+                        url,
+                        title: title || composedText,
+                        text: composedText
+                    };
+                }
+                const sizeOption = Number.isFinite(options.qrSize) ? Math.round(options.qrSize) : 180;
+                const size = Math.min(Math.max(sizeOption, 80), 512);
+                const qrUrl = url ? `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}` : '';
+                return {
+                    platform: 'wechat',
+                    mode: 'qr',
+                    url,
+                    qrImage: qrUrl,
+                    title: title || composedText
+                };
+            }
+            case 'native': {
+                return {
+                    platform: 'native',
+                    mode: 'native',
+                    url,
+                    title: title || '',
+                    text: composedText
+                };
+            }
+            case 'copy': {
+                return {
+                    platform: 'copy',
+                    mode: 'copy',
+                    url,
+                    text: composedText
+                };
+            }
+            default:
+                return {
+                    platform: normalizedTarget || 'generic',
+                    mode: 'link',
+                    url,
+                    title,
+                    text: composedText,
+                    description,
+                    image
+                };
+        }
+    }
+
+    function openShare(target, options = {}) {
+        const payload = buildSharePayload(target, options);
+        if (!payload) {
+            return null;
+        }
+        const win = typeof window !== 'undefined' ? window : null;
+        if (payload.mode === 'popup' && payload.url && win) {
+            const features = options.windowFeatures || 'width=600,height=540,top=100,left=100,toolbar=no,menubar=no,scrollbars=yes,resizable=yes';
+            win.open(payload.url, '_blank', features);
+        } else if (payload.mode === 'native' && typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+            const shareData = {
+                title: payload.title || options.title || '',
+                text: payload.text || options.text || '',
+                url: payload.url || options.url || ''
+            };
+            navigator.share(shareData).catch(() => {
+                /* noop */
+            });
+        } else if (payload.mode === 'copy' && options.autoCopy !== false && typeof navigator !== 'undefined' && navigator.clipboard && payload.url) {
+            navigator.clipboard.writeText(payload.url).catch(() => {
+                /* noop */
+            });
+        }
+        return payload;
+    }
+
     const utils = {
         hashString,
         escapeForSvg,
@@ -181,7 +354,10 @@
         formatCustomData,
         sanitizeCustomDataInput,
         prepareCustomLessons,
-        getCustomLessonsWithDefaults
+        getCustomLessonsWithDefaults,
+        detectShareEnvironment,
+        buildSharePayload,
+        openShare
     };
 
     if (typeof window !== 'undefined') {

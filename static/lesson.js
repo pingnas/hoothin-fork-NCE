@@ -21,7 +21,9 @@
             deriveLrcUrl,
             parseCustomBookKey,
             loadStoredCustomData,
-            prepareCustomLessons
+            prepareCustomLessons,
+            openShare,
+            detectShareEnvironment
         } = utils;
 
         /** 读取 URL hash 并构造资源路径 */
@@ -105,6 +107,15 @@
         const speedContainer = document.getElementById('playback-speed');
         const dictationModeCheckbox = document.getElementById('dictation-mode');
         const dictationContainer = document.getElementById('dictation-container');
+        const shareContainer = document.getElementById('share-container');
+        const shareTrigger = document.getElementById('share-trigger');
+        const shareMenu = document.getElementById('share-menu');
+        const shareFeedback = document.getElementById('share-feedback');
+        const wechatPopover = document.getElementById('wechat-share-popover');
+        const wechatQrImage = document.getElementById('wechat-share-qr');
+        const wechatCloseBtn = document.getElementById('wechat-share-close');
+        const hasNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+        const shareEnvironment = detectShareEnvironment ? detectShareEnvironment() : { isMobile: false, isWeChatBrowser: false };
 
         // Custom player controls
         const playPauseBtn = document.getElementById('play-pause-btn');
@@ -182,6 +193,211 @@
             progress.style.width = `${ratio * 100}%`;
             timeDisplay.textContent = `${formatTime(targetTime)} / ${formatTime(duration)}`;
             return targetTime;
+        }
+
+        /** -------------------------------------------------
+         *  分享功能
+         * ------------------------------------------------- */
+        let shareFeedbackTimer = null;
+
+        function closeShareMenu() {
+            if (!shareMenu || !shareTrigger) return;
+            shareMenu.classList.remove('open');
+            shareMenu.setAttribute('aria-hidden', 'true');
+            shareTrigger.setAttribute('aria-expanded', 'false');
+            shareTrigger.classList.remove('is-open');
+        }
+
+        function openShareMenu() {
+            if (!shareMenu || !shareTrigger) return;
+            hideWeChatPopover();
+            if (shareFeedback) {
+                shareFeedback.classList.remove('visible');
+                shareFeedback.setAttribute('aria-hidden', 'true');
+            }
+            if (shareFeedbackTimer) {
+                clearTimeout(shareFeedbackTimer);
+                shareFeedbackTimer = null;
+            }
+            shareMenu.classList.add('open');
+            shareMenu.setAttribute('aria-hidden', 'false');
+            shareTrigger.setAttribute('aria-expanded', 'true');
+            shareTrigger.classList.add('is-open');
+        }
+
+        function hideWeChatPopover() {
+            if (!wechatPopover) return;
+            wechatPopover.classList.remove('visible');
+            wechatPopover.setAttribute('aria-hidden', 'true');
+            if (wechatQrImage) {
+                wechatQrImage.removeAttribute('src');
+            }
+        }
+
+        function showWeChatPopover(payload) {
+            if (!wechatPopover || !wechatQrImage) {
+                showShareFeedback('浏览器限制，复制链接分享给好友吧');
+                return;
+            }
+            if (!payload || !payload.qrImage) {
+                showShareFeedback('二维码生成失败，稍后再试或改用其它方式');
+                return;
+            }
+            wechatQrImage.src = payload.qrImage;
+            wechatPopover.classList.add('visible');
+            wechatPopover.setAttribute('aria-hidden', 'false');
+        }
+
+        function handleWeChatInternalShare(options) {
+            const messages = [];
+            if (shareEnvironment.isWeChatBrowser) {
+                messages.push('请点击右上角菜单，选择“分享到朋友圈”或“发送给朋友”。');
+            }
+            if (!messages.length) {
+                messages.push('请使用系统分享或复制链接转发给好友。');
+            }
+            showShareFeedback(messages.join(' '));
+        }
+
+        function showShareFeedback(message) {
+            if (!shareFeedback || !message) {
+                return;
+            }
+            hideWeChatPopover();
+            shareFeedback.textContent = message;
+            shareFeedback.classList.add('visible');
+            shareFeedback.setAttribute('aria-hidden', 'false');
+            if (shareFeedbackTimer) {
+                clearTimeout(shareFeedbackTimer);
+            }
+            shareFeedbackTimer = setTimeout(() => {
+                shareFeedback.classList.remove('visible');
+                shareFeedback.setAttribute('aria-hidden', 'true');
+                shareFeedbackTimer = null;
+            }, 2800);
+        }
+
+        function getShareOptions() {
+            const currentUrl = window.location.href;
+            const lessonTitle = (lessonTitleEl ? lessonTitleEl.textContent : '') || state.title || fallbackTitle || document.title || '';
+            const albumTitle = (bookTitleEl ? bookTitleEl.textContent : '') || state.album || fallbackAlbum || '';
+            const cleanLesson = lessonTitle.trim() || '精选课程';
+            const cleanAlbum = albumTitle.trim();
+            const headline = cleanAlbum ? `《${cleanLesson}》 · ${cleanAlbum}` : `《${cleanLesson}》`;
+            const benefitLine = '逐句精听 · 中英双显 · 听写训练';
+            const invitation = cleanAlbum
+                ? `我正在新概念英语中精读${headline}，一起来打卡进步吧！`
+                : `我正在新概念英语中精读${headline}，一起坚持英语打卡吧！`;
+            return {
+                url: currentUrl,
+                title: `${headline} | 新概念英语精读`,
+                description: `${benefitLine}`,
+                text: `${invitation}`,
+                image: bookImgEl ? bookImgEl.src : ''
+            };
+        }
+
+        function handleShare(target) {
+            if (!openShare || !target) {
+                return;
+            }
+            if (target === 'native' && !hasNativeShare) {
+                showShareFeedback('当前浏览器不支持系统分享，试试复制链接吧');
+                return;
+            }
+            const payload = openShare(target, {
+                ...getShareOptions(),
+                windowFeatures: 'width=680,height=580,top=88,left=120,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
+            });
+            if (!payload) {
+                showShareFeedback('分享未完成，稍后再试或换个渠道吧');
+                return;
+            }
+            switch (payload.mode) {
+                case 'qr':
+                    showWeChatPopover(payload);
+                    break;
+                case 'wechat-internal':
+                    handleWeChatInternalShare(payload);
+                    break;
+                case 'copy':
+                    showShareFeedback('链接已复制，快去邀请好友一起学习吧！');
+                    break;
+                case 'native':
+                    showShareFeedback('已唤起系统分享，挑选好友一起打卡！');
+                    break;
+                default:
+                    showShareFeedback('分享窗口已打开，邀好友共同进步！');
+                    break;
+            }
+        }
+
+        if (shareMenu && !hasNativeShare) {
+            const nativeButtons = shareMenu.querySelectorAll('[data-requires-native="true"]');
+            nativeButtons.forEach((btn) => btn.remove());
+        }
+
+        if (shareMenu && shareEnvironment.isMobile) {
+            const weChatItem = shareMenu.querySelector('[data-share-target="wechat"] span:last-child');
+            if (weChatItem) {
+                weChatItem.textContent = shareEnvironment.isWeChatBrowser ? '微信内转发指南' : '微信好友速分享';
+            }
+        }
+
+        if (shareTrigger) {
+            shareTrigger.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (shareMenu && shareMenu.classList.contains('open')) {
+                    closeShareMenu();
+                } else {
+                    openShareMenu();
+                }
+            });
+        }
+
+        if (shareMenu) {
+            shareMenu.addEventListener('click', (event) => {
+                const targetBtn = event.target.closest('[data-share-target]');
+                if (!targetBtn) {
+                    return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                closeShareMenu();
+                handleShare(targetBtn.dataset.shareTarget);
+            });
+        }
+
+        if (shareContainer) {
+            shareContainer.addEventListener('click', (event) => {
+                event.stopPropagation();
+            });
+        }
+
+        document.addEventListener('click', () => {
+            closeShareMenu();
+            hideWeChatPopover();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeShareMenu();
+                hideWeChatPopover();
+            }
+        });
+
+        if (wechatCloseBtn) {
+            wechatCloseBtn.addEventListener('click', (event) => {
+                event.preventDefault();
+                hideWeChatPopover();
+            });
+        }
+
+        if (wechatPopover) {
+            wechatPopover.addEventListener('click', (event) => {
+                event.stopPropagation();
+            });
         }
 
         /** ------------------------------------------------- 

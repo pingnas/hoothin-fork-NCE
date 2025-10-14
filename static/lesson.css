@@ -62,11 +62,275 @@
 }
 
 /* Lesson Navigation Buttons */
+.book-title-header {
+    margin-top: 12px;
+    margin-bottom: 8px;
+}
+
+.book-title-header #book-title {
+    margin: 0;
+}
+
 .lesson-navigation {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     gap: 12px;
-    margin-top: 15px;
+    margin-top: 18px;
+}
+
+.lesson-nav-group {
+    display: flex;
+    gap: 12px;
+}
+
+.lesson-sharing {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    display: flex;
+    align-items: center;
+    z-index: 1300;
+}
+
+.share-btn {
+    width: 44px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #333;
+    color: var(--text-color-dark);
+    border: 1px solid #444;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.share-btn::after {
+    content: '';
+    width: 18px;
+    height: 18px;
+    background-color: currentColor;
+    mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7 0-.24-.04-.47-.09-.7l7.02-4.11c.53.5 1.23.81 2.01.81 1.66 0 3-1.34 3-3S19.66 2 18 2s-3 1.34-3 3c0 .24.04.47.09.7L8.07 9.81C7.53 9.31 6.83 9 6.05 9 4.39 9 3.05 10.34 3.05 12s1.34 3 3 3c.78 0 1.48-.31 2.01-.81l7.07 4.15c-.05.21-.08.43-.08.66 0 1.52 1.23 2.75 2.75 2.75s2.75-1.23 2.75-2.75-1.23-2.75-2.75-2.75z"/></svg>');
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+}
+
+.share-btn:hover,
+.share-btn:focus-visible,
+.share-btn.is-open {
+    background-color: #444;
+    color: var(--text-color);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(29, 185, 84, 0.24);
+}
+
+.share-btn:focus-visible {
+    outline: none;
+}
+
+.share-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 10px);
+    width: 180px;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid #333;
+    background: rgba(20, 20, 20, 0.95);
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    z-index: 1200;
+}
+
+.share-menu.open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.share-menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: transparent;
+    border: none;
+    color: var(--text-color-dark);
+    border-radius: 8px;
+    padding: 9px 10px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    font-size: 14px;
+}
+
+.share-menu-item:hover,
+.share-menu-item:focus-visible {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-color);
+    outline: none;
+}
+
+.share-option-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.share-option-icon--wechat {
+    background: linear-gradient(135deg, #20d57a, #0ba360);
+}
+
+.share-option-icon--weibo {
+    background: linear-gradient(135deg, #ff4d4f, #ff8f66);
+}
+
+.share-option-icon--qq {
+    background: linear-gradient(135deg, #4f9cff, #1669ff);
+}
+
+.share-option-icon--link {
+    background: linear-gradient(135deg, #7f5af0, #2cb1bc);
+}
+
+.share-option-icon--native {
+    background: linear-gradient(135deg, #ffb347, #ff7746);
+}
+
+.wechat-share-popover {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 12px);
+    width: 220px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px solid rgba(80, 80, 80, 0.7);
+    background: rgba(10, 10, 10, 0.98);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    transform: translateY(-8px);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    z-index: 1210;
+}
+
+.wechat-share-popover.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.wechat-share-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+#wechat-share-close {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+}
+
+#wechat-share-close::after {
+    content: '';
+    width: 18px;
+    height: 18px;
+    background-color: currentColor;
+    mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>');
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+}
+
+#wechat-share-close:hover,
+#wechat-share-close:focus-visible {
+    color: var(--text-color);
+    outline: none;
+}
+
+#wechat-share-qr {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    display: block;
+    margin: 0 auto 12px;
+    border-radius: 10px;
+    background: #1a1a1a;
+    object-fit: cover;
+}
+
+.wechat-share-popover p {
+    margin: 0;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.75);
+    text-align: center;
+}
+
+.share-feedback {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    padding: 10px 16px;
+    border-radius: 12px;
+    background: rgba(29, 185, 84, 0.16);
+    border: 1px solid rgba(29, 185, 84, 0.35);
+    color: var(--primary-color);
+    font-size: 13px;
+    line-height: 1.4;
+    min-width: 220px;
+    max-width: 320px;
+    text-align: center;
+    white-space: normal;
+    box-sizing: border-box;
+    box-shadow: 0 10px 24px rgba(29, 185, 84, 0.25);
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 1205;
+}
+
+.share-feedback.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+@media (max-width: 640px) {
+    .lesson-sharing {
+        top: 12px;
+        right: 12px;
+    }
 }
 
 .nav-btn {

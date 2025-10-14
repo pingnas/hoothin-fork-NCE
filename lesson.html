@@ -49,6 +49,42 @@
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-5282BCFM9W');</script>
 </head>
 <body>
+<div class="lesson-sharing" id="share-container">
+    <button id="share-trigger" class="share-btn" type="button" aria-haspopup="true" aria-expanded="false" title="分享这节好课，激励更多伙伴">
+        <span class="sr-only">分享这节好课</span>
+    </button>
+    <div id="share-menu" class="share-menu" role="menu" aria-hidden="true">
+        <button type="button" class="share-menu-item" data-share-target="wechat" role="menuitem">
+            <span class="share-option-icon share-option-icon--wechat"></span>
+            <span>微信分享</span>
+        </button>
+        <button type="button" class="share-menu-item" data-share-target="weibo" role="menuitem">
+            <span class="share-option-icon share-option-icon--weibo"></span>
+            <span>微博分享</span>
+        </button>
+        <button type="button" class="share-menu-item" data-share-target="qq" role="menuitem">
+            <span class="share-option-icon share-option-icon--qq"></span>
+            <span>QQ分享</span>
+        </button>
+        <button type="button" class="share-menu-item" data-share-target="copy" role="menuitem">
+            <span class="share-option-icon share-option-icon--link"></span>
+            <span>复制链接</span>
+        </button>
+        <button type="button" class="share-menu-item" data-share-target="native" data-requires-native="true" role="menuitem">
+            <span class="share-option-icon share-option-icon--native"></span>
+            <span>系统分享</span>
+        </button>
+    </div>
+    <div id="wechat-share-popover" class="wechat-share-popover" aria-hidden="true">
+        <div class="wechat-share-header">
+            <span>微信扫一扫立即分享</span>
+            <button id="wechat-share-close" type="button" aria-label="关闭分享二维码"></button>
+        </div>
+        <img id="wechat-share-qr" src="" alt="微信分享二维码" loading="lazy">
+        <p>将二维码分享给好友，共同精进英语</p>
+    </div>
+    <div id="share-feedback" class="share-feedback" aria-live="polite" aria-hidden="true"></div>
+</div>
 <div class="container">
     <a href="index.html">
         <div class="header">
@@ -62,22 +98,26 @@
         <header class="book-header">
             <img id="book-img" src="images/NCE1.jpg" alt="First Things First">
             <div class="book-title">
-                <h3 id="book-title"></h3>
+                <div class="book-title-header">
+                    <h3 id="book-title"></h3>
+                </div>
                 <hr>
                 <p id="lesson-title"></p>
                 <div class="lesson-navigation">
-                    <button id="prev-lesson" class="nav-btn" title="上一课">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
-                        </svg>
-                        <span>上一课</span>
-                    </button>
-                    <button id="next-lesson" class="nav-btn" title="下一课">
-                        <span>下一课</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
-                        </svg>
-                    </button>
+                    <div class="lesson-nav-group">
+                        <button id="prev-lesson" class="nav-btn" title="上一课">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                            </svg>
+                            <span>上一课</span>
+                        </button>
+                        <button id="next-lesson" class="nav-btn" title="下一课">
+                            <span>下一课</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </header>
