@@ -105,6 +105,7 @@
         const setAButton = document.getElementById('set-a');
         const setBButton = document.getElementById('set-b');
         const speedContainer = document.getElementById('playback-speed');
+        const customSpeedButton = document.getElementById('speed-3x');
         const dictationModeCheckbox = document.getElementById('dictation-mode');
         const dictationContainer = document.getElementById('dictation-container');
         const shareContainer = document.getElementById('share-container');
@@ -838,12 +839,105 @@
             }
         });
 
+        const CUSTOM_SPEED_KEY = 'nceCustomPlaybackSpeed';
+        let customSpeedPressTimer = null;
+        let customSpeedLongPressTriggered = false;
+        let suppressNextSpeedClick = false;
+
+        function getCustomSpeed() {
+            const stored = parseFloat(localStorage.getItem(CUSTOM_SPEED_KEY));
+            if (!Number.isFinite(stored) || stored < 0.25 || stored > 5) {
+                return 3;
+            }
+            return stored;
+        }
+
+        function formatSpeedLabel(value) {
+            return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+        }
+
+        function updateCustomSpeedButtonLabel(value = getCustomSpeed()) {
+            if (customSpeedButton) {
+                customSpeedButton.textContent = `${formatSpeedLabel(value)}x`;
+            }
+        }
+
+        function clearCustomSpeedPressTimer() {
+            if (customSpeedPressTimer) {
+                clearTimeout(customSpeedPressTimer);
+                customSpeedPressTimer = null;
+            }
+        }
+
+        function promptCustomSpeed() {
+            clearCustomSpeedPressTimer();
+            const current = getCustomSpeed();
+            const input = window.prompt('请输入自定义播放倍速 (0.25 - 5 之间)', formatSpeedLabel(current));
+            if (input === null) {
+                return;
+            }
+            const numeric = parseFloat(String(input).replace(/[^0-9.]+/g, ''));
+            if (!Number.isFinite(numeric) || numeric < 0.25 || numeric > 5) {
+                window.alert('请输入有效的倍速数值（0.25 - 5 之间）');
+                return;
+            }
+            const normalized = Math.round(numeric * 100) / 100;
+            localStorage.setItem(CUSTOM_SPEED_KEY, normalized);
+            updateCustomSpeedButtonLabel(normalized);
+            audio.playbackRate = normalized;
+            localStorage.setItem('playbackSpeed', '3x');
+            for (const child of speedContainer.children) {
+                child.classList.remove('active');
+            }
+            if (customSpeedButton) {
+                customSpeedButton.classList.add('active');
+            }
+        }
+
+        if (customSpeedButton) {
+            updateCustomSpeedButtonLabel();
+            customSpeedButton.addEventListener('pointerdown', e => {
+                if (e.button !== undefined && e.button !== 0) {
+                    return;
+                }
+                customSpeedLongPressTriggered = false;
+                clearCustomSpeedPressTimer();
+                customSpeedPressTimer = setTimeout(() => {
+                    customSpeedLongPressTriggered = true;
+                    promptCustomSpeed();
+                }, 600);
+            });
+            const cancelCustomSpeedPress = e => {
+                if (customSpeedLongPressTriggered) {
+                    suppressNextSpeedClick = true;
+                    if (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                }
+                clearCustomSpeedPressTimer();
+            };
+            customSpeedButton.addEventListener('pointerup', cancelCustomSpeedPress);
+            customSpeedButton.addEventListener('pointerleave', cancelCustomSpeedPress);
+            customSpeedButton.addEventListener('pointercancel', cancelCustomSpeedPress);
+        }
+
         speedContainer.addEventListener('click', e => {
             if (e.target.tagName !== 'BUTTON') return;
+            if (suppressNextSpeedClick) {
+                suppressNextSpeedClick = false;
+                return;
+            }
 
             const speed = e.target.id.replace('speed-', ''); // e.g., '1x', '3x'
-            audio.playbackRate = parseFloat(speed);
-            localStorage.setItem('playbackSpeed', speed);
+            let playbackRate = parseFloat(speed);
+            if (e.target.id === 'speed-3x') {
+                playbackRate = getCustomSpeed();
+                localStorage.setItem('playbackSpeed', '3x');
+            } else {
+                localStorage.setItem('playbackSpeed', speed);
+            }
+            audio.playbackRate = playbackRate;
 
             // Update active button
             for (const child of speedContainer.children) {
@@ -924,8 +1018,15 @@
             }
 
             // Apply speed
-            audio.playbackRate = parseFloat(savedSpeed);
-            document.getElementById(`speed-${savedSpeed}`).classList.add('active');
+            const savedButton = document.getElementById(`speed-${savedSpeed}`);
+            const appliedSpeed = savedSpeed === '3x' ? getCustomSpeed() : parseFloat(savedSpeed);
+            audio.playbackRate = appliedSpeed;
+            if (savedButton) {
+                savedButton.classList.add('active');
+            }
+            if (customSpeedButton) {
+                updateCustomSpeedButtonLabel();
+            }
         }
 
         document.addEventListener('keydown', e => {
