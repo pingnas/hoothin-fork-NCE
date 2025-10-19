@@ -1,5 +1,5 @@
-# 新概念英语-全四册 🔗https://nce.hoothin.com
-## New Concept English
+# 新概念英语（New Concept English）-全四册
+## 🔗https://nce.hoothin.com
 ### 在线课文点读
 
 在线课文朗读，单句点读，随时随地在线学习。
@@ -127,7 +127,7 @@
 
 **本项目采用 MIT 许可证。详情请参阅 [LICENSE](LICENSE) 文件。**
 
-New Concept English audios：https://github.com/tangx/New-Concept-English
+新概念英语音频资源来自于：https://github.com/tangx/New-Concept-English
 
 如果你有英语音频和对应的 lrc 文件，🔗[欢迎分享自制课本](https://github.com/hoothin/NCE/discussions/categories/%E8%87%AA%E5%AE%9A%E4%B9%89%E8%8B%B1%E8%AF%AD%E8%AF%BE%E6%9C%AC%E5%88%86%E4%BA%AB)
 
