@@ -1029,19 +1029,100 @@
             }
         }
 
+        // Keyboard shortcuts handler
         document.addEventListener('keydown', e => {
-            if (!state.dictation) return;
-
-            const dictationInput = content.querySelector('.dictation-input');
-            if (!dictationInput) return;
-
-            // If focus is already on an interactive element, do nothing.
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') {
+            // If in dictation mode, handle dictation-specific behavior
+            if (state.dictation) {
+                const dictationInput = content.querySelector('.dictation-input');
+                if (dictationInput) {
+                    // If focus is already on an interactive element, do nothing for dictation.
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') {
+                        return;
+                    }
+                    dictationInput.focus();
+                }
+                // In dictation mode, ignore keyboard shortcuts except for specific keys
                 return;
             }
 
-            dictationInput.focus();
+            // Don't handle shortcuts if user is typing in an input field or button
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') {
+                return;
+            }
+
+            // Don't handle shortcuts if modifier keys are pressed (except for system shortcuts)
+            if (e.ctrlKey || e.metaKey || e.altKey) {
+                return;
+            }
+
+            switch (e.key) {
+                case 'ArrowLeft':
+                    // Left arrow: Previous sentence
+                    e.preventDefault();
+                    if (state.activeIdx > 0) {
+                        const prevIdx = state.activeIdx - 1;
+                        const { start, end } = state.data[prevIdx];
+                        playSegment(start, end);
+                    }
+                    break;
+
+                case 'ArrowRight':
+                    // Right arrow: Next sentence
+                    e.preventDefault();
+                    if (state.activeIdx < state.data.length - 1) {
+                        const nextIdx = state.activeIdx + 1;
+                        const { start, end } = state.data[nextIdx];
+                        playSegment(start, end);
+                    }
+                    break;
+
+                case ' ':
+                    // Space: Play/Pause
+                    e.preventDefault();
+                    if (audio.paused) {
+                        if (state.activeIdx !== -1) {
+                            const { start, end } = state.data[state.activeIdx];
+                            playSegment(start, end);
+                        } else if (state.data.length > 0) {
+                            const { start, end } = state.data[0];
+                            playSegment(start, end);
+                        }
+                    } else {
+                        audio.pause();
+                    }
+                    break;
+
+                case 'ArrowUp':
+                    // Up arrow: Previous speed
+                    e.preventDefault();
+                    changeSpeed('previous');
+                    break;
+
+                case 'ArrowDown':
+                    // Down arrow: Next speed
+                    e.preventDefault();
+                    changeSpeed('next');
+                    break;
+            }
         });
+
+        // Function to handle speed changes
+        function changeSpeed(direction) {
+            const speedButtons = Array.from(speedContainer.children);
+            const activeButton = speedButtons.find(btn => btn.classList.contains('active'));
+            let currentIndex = activeButton ? speedButtons.indexOf(activeButton) : 0;
+
+            if (direction === 'previous') {
+                currentIndex = currentIndex > 0 ? currentIndex - 1 : speedButtons.length - 1;
+            } else if (direction === 'next') {
+                currentIndex = currentIndex < speedButtons.length - 1 ? currentIndex + 1 : 0;
+            }
+
+            const targetButton = speedButtons[currentIndex];
+            if (targetButton) {
+                targetButton.click();
+            }
+        }
 
         // 初始化
         loadSettings();
